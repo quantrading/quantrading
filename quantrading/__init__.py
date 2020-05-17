@@ -15,6 +15,11 @@ from .performance_utils import (
     get_annualized_returns,
     get_delta_year,
     convert_values_to_cumulative_returns,
+    get_annualized_std,
+    get_returns_between_returns,
+    get_annual_std,
+    get_performance_summary,
+    get_draw_down,
 )
 from .utils import (
     generate_leverage_index
