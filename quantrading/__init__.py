@@ -25,5 +25,8 @@ from .utils import (
     generate_leverage_index
 )
 from .backtest import (
-    Strategy
+    Strategy,
+    divide_code_list_by_quantiles,
+    apply_equal_weights,
 )
+from .simulation import monte_carlo
