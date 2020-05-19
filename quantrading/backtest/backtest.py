@@ -2,7 +2,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 from .portfolio import Portfolio
 from .trading_day import TradingDay
-from logger import bt_logger
 import empyrical
 from .. import performance_utils
 
@@ -45,7 +44,6 @@ class Strategy:
         end_date = self.end_date
         while self.date <= end_date:
             if self.is_trading_day():
-                bt_logger.info(self.date)
                 if self.exist_reservation_order:
                     self.execute_reservation_order()
                 if self.is_rebalancing_day():

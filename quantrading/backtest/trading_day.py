@@ -23,7 +23,7 @@ class TradingDay:
                              rebalancing_periodic: str,
                              rebalancing_moment: str) -> pd.Series:
         if rebalancing_periodic == 'daily':
-            rebalancing_days = self.get_trading_day_list(start_date, end_date)
+            rebalancing_days = self.get_trading_day_list(start_date, end_date).to_list()
         elif rebalancing_periodic == 'weekly':
             rebalancing_days = self.get_first_day_of_every_week(start_date, end_date)
         elif rebalancing_periodic == 'monthly':
@@ -149,6 +149,10 @@ def generate_year_n_month(start_date: str, end_date: str):
     end_month = int(end_month)
 
     combinations = []
+
+    if start_year == end_year:
+        return [(start_year, month) for month in range(start_month, end_month + 1)]
+
     # start year
     combinations += [(start_year, month) for month in range(start_month, 13)]
 

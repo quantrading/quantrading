@@ -7,10 +7,10 @@ def divide_code_list_by_quantiles(asset_series: pd.Series, quantiles: int, targe
 
     tile = target_tile
 
-    reversed_asset_series = asset_series.sort_index(ascending=False)
+    reversed_asset_series = asset_series.sort_values(ascending=False)
 
-    first_quantile = asset_series.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
-    last_quantile = reversed_asset_series.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
+    first_quantile = asset_series.index.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
+    last_quantile = reversed_asset_series.index.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
     return first_quantile, last_quantile
 
 
