@@ -14,8 +14,8 @@ def divide_code_list_by_quantiles(asset_series: pd.Series, quantiles: int, targe
     return first_quantile, last_quantile
 
 
-def apply_equal_weights(code_list: list, for_short=False) -> dict:
-    total_weight = -1 if for_short else 1
+def apply_equal_weights(code_list: list, for_short=False, exposure=1) -> dict:
+    total_weight = -exposure if for_short else exposure
     if len(code_list) == 0:
         weights = {}
     else:
@@ -24,3 +24,7 @@ def apply_equal_weights(code_list: list, for_short=False) -> dict:
         for ticker in code_list:
             weights[ticker] = weight_per_stock
     return weights
+
+
+def get_intersect_code_list(one: list, another: list) -> list:
+    return list(set(one).intersection(set(another)))

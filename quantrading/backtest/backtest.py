@@ -31,6 +31,7 @@ class Strategy:
         self.event_log = pd.DataFrame(columns=["datetime", "log"])
         self.exist_reservation_order = False
         self.reservation_order = pd.Series()
+        self.selected_asset_counts = pd.Series()
 
     def initialize(self):
         pass
@@ -54,6 +55,7 @@ class Strategy:
 
     def execute_reservation_order(self):
         self.portfolio.set_allocations(self.reservation_order)
+        self.selected_asset_counts.loc[self.date] = len(self.reservation_order)
         self.reservation_order = pd.Series()
         self.exist_reservation_order = False
 
@@ -97,11 +99,8 @@ class Strategy:
         for ticker, amount in self.portfolio.security_holding.items():
             self.portfolio_log.loc[self.date, ticker + "_amount"] = amount
 
-    def update_portfolio_value(self, market_df=None):
-        if market_df is None:
-            self.portfolio.update_holdings_value(self.date, self.market_df)
-        else:
-            self.portfolio.update_holdings_value(self.date, market_df)
+    def update_portfolio_value(self):
+        self.portfolio.update_holdings_value(self.date, self.market_df_pct_change)
 
     def set_holdings(self, ticker: str, weight: float):
         self.portfolio.set_weight(ticker, weight)
@@ -155,6 +154,32 @@ class Strategy:
 
         result = self.get_result()
         save_simulation_result_to_excel_file(result, path)
+
+    def port_value_to_csv(self, file_name=None, folder_path=None):
+        if file_name is None:
+            file_name = self.name
+
+        if folder_path is None:
+            path = f"./{file_name}.csv"
+        else:
+            path = f"./{folder_path}/{file_name}.csv"
+
+        result = self.get_result()
+        performance = result['performance']
+        portfolio_log = performance["portfolio_log"]
+        port_value = portfolio_log['port_value']
+        port_value.to_csv(path, encoding='cp949')
+
+    def selected_asset_counts_to_csv(self, file_name=None, folder_path=None):
+        if file_name is None:
+            file_name = self.name
+
+        if folder_path is None:
+            path = f"./{file_name}.csv"
+        else:
+            path = f"./{folder_path}/{file_name}.csv"
+
+        self.selected_asset_counts.to_csv(path, encoding='cp949')
 
 
 def save_simulation_result_to_excel_file(result: dict, path: str) -> None:

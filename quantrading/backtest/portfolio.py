@@ -62,10 +62,10 @@ class Portfolio:
             # nothing
             pass
 
-    def update_holdings_value(self, today_date: datetime, market_df: pd.DataFrame):
+    def update_holdings_value(self, today_date: datetime, market_df_pct_change: pd.DataFrame):
         prev_holdings = self.security_holding.items()
         for ticker, amount in prev_holdings:
-            daily_returns = market_df.loc[today_date, ticker + "|DR"]
+            daily_returns = market_df_pct_change.loc[today_date, ticker]
             if np.isnan(daily_returns):
                 continue
             new_amount = amount * (1 + daily_returns)
