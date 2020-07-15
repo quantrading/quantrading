@@ -26,6 +26,7 @@ from .utils import (
 )
 from .backtest import (
     Strategy,
+    LightStrategy,
     divide_code_list_by_quantiles,
     apply_equal_weights,
     get_static_weight_rebalancing_port_daily_value_df,

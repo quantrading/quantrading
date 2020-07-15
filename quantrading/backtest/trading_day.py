@@ -21,7 +21,7 @@ class TradingDay:
                              start_date: datetime,
                              end_date: datetime,
                              rebalancing_periodic: str,
-                             rebalancing_moment: str) -> pd.Series:
+                             rebalancing_moment: str) -> list:
         if rebalancing_periodic == 'daily':
             rebalancing_days = self.get_trading_day_list(start_date, end_date).to_list()
         elif rebalancing_periodic == 'weekly':

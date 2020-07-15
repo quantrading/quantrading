@@ -14,6 +14,7 @@ class Strategy:
         self.date = self.start_date
 
         self.market_df = kwargs.get("market_df")
+        self.market_df_pct_change = self.market_df.pct_change()
 
         # set trading days & rebalancing days
         trading_day = TradingDay(self.market_df.index.to_series().reset_index(drop=True))
