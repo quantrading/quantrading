@@ -24,10 +24,13 @@ class LightStrategy:
         self.rebalancing_days = trading_day.get_rebalancing_days(self.start_date, self.end_date,
                                                                  self.rebalancing_periodic,
                                                                  self.rebalancing_moment)
-
+        self.initial_order = False
         self.weight_dict_list = []
 
     def initialize(self):
+        """
+        상속하여 초기 포트 비중 설정시, self.initial_order = True 로 설정해줘야함.
+        """
         pass
 
     def on_data(self):
@@ -60,7 +63,13 @@ class LightStrategy:
     def on_end_of_algorithm(self):
         weight_dict_list = self.weight_dict_list
         daily_return_df = self.daily_return_df
-        rebalacing_date_list = self.rebalancing_days
+
+        if self.trading_days[0] in self.rebalancing_days:
+            rebalacing_date_list = self.rebalancing_days[1:]
+            if self.initial_order:
+                weight_dict_list = weight_dict_list[1:]
+        else:
+            rebalacing_date_list = self.rebalancing_days
 
         ticker_set = set()
         for weight_dict in weight_dict_list:
