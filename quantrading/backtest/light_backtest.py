@@ -1,6 +1,7 @@
 import pandas as pd
 from .trading_day import TradingDay
 from .utils import get_dynamic_weight_rebalancing_port_daily_value_df
+from .backtest import calc_performance_from_value_history
 
 
 class LightStrategy:
@@ -13,6 +14,7 @@ class LightStrategy:
         # 전 기간 동안의 유니버스를 받아옴.
         self.daily_price_df: pd.DataFrame = kwargs.get("daily_price_df")
         self.daily_return_df: pd.DataFrame = self.daily_price_df.pct_change()
+        self.daily_return_df = self.daily_return_df.loc[self.daily_return_df.index >= self.start_date]
 
         self.tickers = self.daily_return_df.columns.to_list()
 
@@ -26,6 +28,7 @@ class LightStrategy:
                                                                  self.rebalancing_moment)
         self.initial_order = False
         self.weight_dict_list = []
+        self.result = None
 
     def initialize(self):
         """
@@ -44,6 +47,7 @@ class LightStrategy:
         self.on_end_of_algorithm()
 
     def reserve_order(self, allocation: dict):
+        allocation['date'] = self.date
         self.weight_dict_list.append(allocation)
 
     def is_trading_day(self):
@@ -75,6 +79,7 @@ class LightStrategy:
         for weight_dict in weight_dict_list:
             tickers = list(weight_dict.keys())
             ticker_set = ticker_set.union(set(tickers))
+        ticker_set.remove('date')
 
         traded_tickers = list(ticker_set)
 
@@ -83,7 +88,9 @@ class LightStrategy:
         empty_weight_series = pd.Series(0, index=traded_tickers)
         weight_series_list = []
         for weight_dict in weight_dict_list:
+            date = weight_dict.pop('date')
             weight_series = empty_weight_series.add(pd.Series(weight_dict)).fillna(0)
+            weight_series.name = date
             weight_series_list.append(weight_series)
 
         port_value_df = get_dynamic_weight_rebalancing_port_daily_value_df(
@@ -91,4 +98,33 @@ class LightStrategy:
             daily_return_df,
             rebalacing_date_list
         )
-        print(port_value_df.sum(axis=1))
+        port_value_series = port_value_df.sum(axis=1)
+        port_value_series = port_value_series * 100
+        port_value_series.name = self.name
+
+        result = dict()
+        performance = calc_performance_from_value_history(port_value_series)
+        performance['port_value'] = port_value_series
+        result['performance'] = performance
+
+        weight_df = pd.DataFrame(weight_series_list)
+        result['rebalacing_history'] = weight_df
+        self.result = result
+
+    def result_value_to_excel_file(self, path):
+        result = self.result
+
+        performance = result['performance']
+        rebalacing_history = result['rebalacing_history']
+
+        portfolio_log = pd.concat([performance["port_value"], performance['drawdown']], axis=1)
+        monthly_returns = performance["monthly_returns"]
+        annual_summary = performance["annual_summary"]
+        performance_summary = performance["performance_summary"]
+        with pd.ExcelWriter(path, datetime_format="yyyy-mm-dd") as writer:
+            portfolio_log.to_excel(writer, sheet_name="portfolio log")
+            performance_summary.to_excel(writer, sheet_name="요약")
+            rebalacing_history.to_excel(writer, sheet_name="리밸런싱 비중")
+            monthly_returns.to_excel(writer, sheet_name="월별수익률")
+            annual_summary.to_excel(writer, sheet_name="연도별 요약")
+
