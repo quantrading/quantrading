@@ -1,5 +1,6 @@
 from .backtest import (
-    Strategy
+    Strategy,
+    save_simulation_result_to_excel_file
 )
 from .light_backtest import (
     LightStrategy
@@ -9,5 +10,6 @@ from .utils import (
     apply_equal_weights,
     get_no_rebalancing_port_daily_value_df,
     get_static_weight_rebalancing_port_daily_value_df,
-    get_dynamic_weight_rebalancing_port_daily_value_df
+    get_dynamic_weight_rebalancing_port_daily_value_df,
+    concat_simulation_result
 )

@@ -11,7 +11,11 @@ setup(
     author="Jang Woo Jae",
     author_email="dnwogo@naver.com",
     description="backtest utils",
-    install_requires=['empyrical'],
+    install_requires=[
+        'empyrical',
+        'openpyxl',
+        'xlsxwriter',
+    ],
     packages=find_packages(exclude=['tests', 'docs']),
     python_requires='>=3',
     long_description=open('README.md', encoding='UTF8').read(),
