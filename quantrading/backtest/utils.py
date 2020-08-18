@@ -1,4 +1,5 @@
 import pandas as pd
+import empyrical
 
 
 def divide_code_list_by_quantiles(asset_series: pd.Series, quantiles: int, target_tile: int) -> tuple:
@@ -84,8 +85,6 @@ def get_dynamic_weight_rebalancing_port_daily_value_df(weight_series_list: list,
     """
     assert len(weight_series_list) == len(rebalancing_date_list) + 1
 
-    port_value_df = pd.DataFrame()
-
     new_rebalancing_date_list = [*rebalancing_date_list]
     if new_rebalancing_date_list[-1] != daily_return_df.index[-1].strftime("%Y-%m-%d"):
         new_rebalancing_date_list.append(daily_return_df.index[-1].strftime("%Y-%m-%d"))
@@ -101,7 +100,6 @@ def get_dynamic_weight_rebalancing_port_daily_value_df(weight_series_list: list,
         else:
             start_date = rebalancing_date_list[i - 1]
             end_date = date
-            # previous_value_series = weight_series_list[i] * port_value_df.iloc[-1].sum()
             previous_value_series = weight_series_list[i] * sliced_value_df_list[-1].iloc[-1].sum()
             date_range = (daily_return_df.index > start_date) & (daily_return_df.index <= end_date)
         sliced_daily_return_df = daily_return_df.loc[date_range]
@@ -109,3 +107,72 @@ def get_dynamic_weight_rebalancing_port_daily_value_df(weight_series_list: list,
         sliced_value_df_list.append(sliced_value_df)
     port_value_df = pd.concat([*sliced_value_df_list], axis=0)
     return port_value_df
+
+
+def compare_strategy_with_benchmark(strategy, benchmark_list: list):
+    strategy_performance = strategy.get_result()
+    print(strategy_performance["yearly_returns"])
+
+    all_columns = [strategy.name]
+    for benchmark in benchmark_list:
+        all_columns.append(benchmark.name)
+
+    yearly_returns = strategy_performance["yearly_returns"]
+    for benchmark in benchmark_list:
+        benchmark_yearly_returns = empyrical.aggregate_returns(benchmark.get_daily_return(), "yearly")
+        yearly_returns = pd.concat([yearly_returns, benchmark_yearly_returns], axis=1)
+
+    yearly_returns.columns = all_columns
+
+    print(yearly_returns)
+
+
+def merge_portfolio_log(algorithm_list):
+    total_portfolio_log = pd.DataFrame()
+    for algorithm in algorithm_list:
+        single_portfolio_log = algorithm.portfolio_log
+        total_portfolio_log = pd.concat([total_portfolio_log, single_portfolio_log], axis=1)
+
+    result_portfolio_log = pd.DataFrame()
+    col_list = total_portfolio_log.columns.drop_duplicates()
+    for col in col_list:
+        series_or_df = total_portfolio_log[col]
+        if type(series_or_df) == pd.Series:
+            result_portfolio_log = pd.concat([result_portfolio_log, series_or_df], axis=1)
+        else:
+            new_col_series = series_or_df.sum(axis=1)
+            new_col_series.name = col
+            result_portfolio_log = pd.concat([result_portfolio_log, new_col_series], axis=1)
+    result_portfolio_log = result_portfolio_log.fillna(0)
+    return result_portfolio_log
+
+
+def concat_simulation_result(result_list) -> dict:
+    concated_performance = {}
+
+    performance_list = [result['performance'] for result in result_list]
+
+    port_value_df = pd.DataFrame()
+    monthly_returns_df = pd.DataFrame()
+    annual_summary_df = pd.DataFrame()
+    performance_summary_df = pd.DataFrame()
+    for performance in performance_list:
+        port_value = performance['portfolio_log'].iloc[:, 0]
+        port_value_df = pd.concat([port_value_df, port_value], axis=1)
+
+        monthly_returns = performance['monthly_returns']
+        monthly_returns_df = pd.concat([monthly_returns_df, monthly_returns], axis=1)
+
+        annual_summary = performance['annual_summary']
+        annual_summary_df = pd.concat([annual_summary_df, annual_summary], axis=1)
+
+        performance_summary = performance['performance_summary']
+        performance_summary_df = pd.concat([performance_summary_df, performance_summary], axis=1)
+
+    concated_performance['portfolio_log'] = port_value_df
+    concated_performance['monthly_returns'] = monthly_returns_df
+    concated_performance['annual_summary'] = annual_summary_df
+    concated_performance['performance_summary'] = performance_summary_df
+    return {
+        "performance": concated_performance
+    }
