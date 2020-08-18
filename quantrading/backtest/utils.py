@@ -51,12 +51,11 @@ def get_static_weight_rebalancing_port_daily_value_df(weight_series: pd.Series,
     리밸런싱 날의 종가에 매도, 매수 모두 이루어진다고 가정.
     """
 
-    port_value_df = pd.DataFrame()
-
     new_rebalancing_date_list = [*rebalancing_date_list]
     if new_rebalancing_date_list[-1] != daily_return_df.index[-1].strftime("%Y-%m-%d"):
         new_rebalancing_date_list.append(daily_return_df.index[-1].strftime("%Y-%m-%d"))
 
+    value_df_list = []
     for i, date in enumerate(new_rebalancing_date_list):
         if i == 0:
             start_date = daily_return_df.index[0].strftime("%Y-%m-%d")
@@ -66,11 +65,13 @@ def get_static_weight_rebalancing_port_daily_value_df(weight_series: pd.Series,
         else:
             start_date = new_rebalancing_date_list[i - 1]
             end_date = date
-            previous_value_series = weight_series * port_value_df.iloc[-1].sum()
+            previous_value_series = weight_series * sliced_value_df.iloc[-1].sum()
             date_range = (daily_return_df.index > start_date) & (daily_return_df.index <= end_date)
         sliced_daily_return_df = daily_return_df.loc[date_range]
         sliced_value_df = sliced_daily_return_df.add(1).cumprod().multiply(previous_value_series)
-        port_value_df = pd.concat([port_value_df, sliced_value_df], axis=0)
+        value_df_list.append(sliced_value_df)
+
+    port_value_df = pd.concat([*value_df_list], axis=0)
     return port_value_df
 
 
