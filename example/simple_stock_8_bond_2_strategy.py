@@ -1,14 +1,3 @@
-# quantrading
- - 백테스팅 유틸 라이브러리입니다.
-
-## 설치
-```commandline
-$ pip install quantrading
-```
-
-## 사용 예시
-> example -> simple_stock_8_bond_2_strategy.py 참고
-```python
 import quantrading as qt
 from datetime import datetime
 import pandas as pd
@@ -48,4 +37,3 @@ if __name__ == "__main__":
     strategy = MyStrategy(**simulation_args)
     strategy.run()
     strategy.result_to_excel(folder_path="simulation_result")
-```

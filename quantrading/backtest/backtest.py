@@ -5,6 +5,7 @@ from .trading_day import TradingDay
 import empyrical
 from .. import performance_utils
 from xlsxwriter.utility import xl_col_to_name
+from .. import utils
 
 
 class Strategy:
@@ -104,7 +105,8 @@ class Strategy:
         pass
 
     def on_end_of_day(self):
-        pass
+        self.update_portfolio_value()
+        self.log_portfolio_value()
 
     def on_end_of_algorithm(self):
         pass
@@ -164,6 +166,7 @@ class Strategy:
         if folder_path is None:
             path = f"./{file_name}.xlsx"
         else:
+            utils.make_folder(f'./{folder_path}')
             path = f"./{folder_path}/{file_name}.xlsx"
 
         result = self.get_result()
