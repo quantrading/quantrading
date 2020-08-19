@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import timedelta
 from .portfolio import Portfolio
 from .trading_day import TradingDay
 import empyrical
@@ -12,23 +12,24 @@ class Strategy:
         self.name = kwargs.get("name")
         self.start_date = kwargs.get("start_date")
         self.end_date = kwargs.get("end_date")
-        self.date = self.start_date
-
         self.market_df = kwargs.get("market_df")
-        self.market_df_pct_change = self.market_df.pct_change()
+        self.rebalancing_periodic = kwargs.get("rebalancing_periodic", 'monthly')
+        self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
+        self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
+
+        self.on_data_before_n_days_of_rebalacing_days = kwargs.get('on_data_before_n_days_of_rebalacing_days', 1)
 
         # set trading days & rebalancing days
         trading_day = TradingDay(self.market_df.index.to_series().reset_index(drop=True))
         self.trading_days = trading_day.get_trading_day_list(self.start_date, self.end_date).to_list()
-
-        self.rebalancing_periodic = kwargs.get("rebalancing_periodic")
-        self.rebalancing_moment = kwargs.get("rebalancing_moment")
         self.rebalancing_days = trading_day.get_rebalancing_days(self.start_date, self.end_date,
                                                                  self.rebalancing_periodic, self.rebalancing_moment)
-        self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
+        self.date = self.start_date
+        self.market_df_pct_change = self.market_df.pct_change()
 
         self.portfolio = Portfolio()
         self.portfolio_log = pd.DataFrame()
+        self.order_weight_df = pd.DataFrame()
         self.simulation_status = {}
         self.simulation_result = {}
         self.event_log = pd.DataFrame(columns=["datetime", "log"])
@@ -48,9 +49,10 @@ class Strategy:
         end_date = self.end_date
         while self.date <= end_date:
             if self.is_trading_day():
+                self.on_start_of_day()
                 if self.exist_reservation_order:
                     self.execute_reservation_order()
-                if self.is_rebalancing_day():
+                if self.is_rebalancing_day(self.on_data_before_n_days_of_rebalacing_days):
                     self.on_data()
                 self.on_end_of_day()
             self.date += timedelta(days=1)
@@ -58,6 +60,9 @@ class Strategy:
 
     def execute_reservation_order(self):
         self.portfolio.set_allocations(self.reservation_order)
+        reservation_order_series = self.reservation_order
+        reservation_order_series.name = self.date
+        self.order_weight_df = pd.concat([self.order_weight_df, reservation_order_series.to_frame().T], axis=0)
         self.selected_asset_counts.loc[self.date] = len(self.reservation_order)
         self.reservation_order = pd.Series()
         self.exist_reservation_order = False
@@ -76,9 +81,21 @@ class Strategy:
         else:
             return False
 
-    def is_rebalancing_day(self):
+    def is_rebalancing_day(self, next_n_trading_days):
         today = self.date
-        if today in self.rebalancing_days:
+
+        if today == self.start_date:
+            if today in self.rebalancing_days:
+                return True
+            else:
+                return False
+
+        target_date_index = self.trading_days.index(today) + next_n_trading_days
+        if target_date_index >= len(self.trading_days):
+            return False
+
+        target_date = self.trading_days[target_date_index]
+        if target_date in self.rebalancing_days:
             return True
         else:
             return False
@@ -105,23 +122,6 @@ class Strategy:
     def update_portfolio_value(self):
         self.portfolio.update_holdings_value(self.date, self.market_df_pct_change)
 
-    def set_holdings(self, ticker: str, weight: float):
-        self.portfolio.set_weight(ticker, weight)
-
-    def set_start_date(self, year: int, month: int, day: int):
-        self.start_date = datetime(year, month, day)
-
-    def set_end_date(self, year: int, month: int, day: int):
-        date = datetime(year, month, day)
-        assert date >= self.start_date
-        self.end_date = date
-
-    def set_rebalancing_days(self, date_list: list):
-        self.rebalancing_days = [*date_list]
-
-    def liquidate(self, ticker: str):
-        self.set_holdings(ticker, 0)
-
     def get_daily_return(self):
         return self.portfolio_log['port_value'].pct_change()
 
@@ -146,8 +146,7 @@ class Strategy:
         annual_summary = pd.DataFrame(annual_summary.values, columns=multi_index, index=annual_summary.index.tolist())
         performance['annual_summary'] = annual_summary
 
-        portfolio_weight = portfolio_log.divide(portfolio_log[port_col_name], axis=0)
-        rebalancing_weight = portfolio_weight.loc[self.rebalancing_days]
+        rebalancing_weight = self.order_weight_df
 
         port_drawdown = performance.get("drawdown")
         portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
@@ -213,13 +212,14 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
         annual_summary.to_excel(writer, sheet_name="연도별 요약")
         performance_summary.to_excel(writer, sheet_name="요약")
 
-        if event_log:
+        workbook = writer.book
+
+        if len(event_log) > 0:
             event_log.to_excel(writer, sheet_name="event log")
-        if rebalancing_weight:
+        if len(rebalancing_weight) > 0:
             rebalancing_weight.to_excel(writer, sheet_name="리밸런싱 비중")
 
         if display_value_chart:
-            workbook = writer.book
             sheet_name = 'portfolio log'
             worksheet = writer.sheets[sheet_name]
 
@@ -252,14 +252,17 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
         percentge_format = workbook.add_format(percentge_styles)
         float_format = workbook.add_format(float_styles)
 
-        worksheet.conditional_format(f'B4:{xl_col_to_name(len(performance_summary.columns))}7', {'type': 'cell',
-                                                                                                 'criteria': '>=',
-                                                                                                 'value': -999,
-                                                                                                 'format': percentge_format})
-        worksheet.conditional_format(f'B8:{xl_col_to_name(len(performance_summary.columns))}8', {'type': 'cell',
-                                                                                                 'criteria': '>=',
-                                                                                                 'value': -999,
-                                                                                                 'format': float_format})
+        columns_alphabet = xl_col_to_name(len(performance_summary.columns)) if type(
+            performance_summary) is pd.DataFrame else xl_col_to_name(1)
+
+        worksheet.conditional_format(f'B4:{columns_alphabet}7', {'type': 'cell',
+                                                               'criteria': '>=',
+                                                               'value': -999,
+                                                               'format': percentge_format})
+        worksheet.conditional_format(f'B8:{columns_alphabet}8', {'type': 'cell',
+                                                               'criteria': '>=',
+                                                               'value': -999,
+                                                               'format': float_format})
 
         if compare_with_bench:
             # 벤치마크가 첫 자산
@@ -289,7 +292,7 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
 
             chart.set_legend({'position': 'bottom'})
 
-            worksheet.insert_chart(f'{xl_col_to_name(start_col+5)}2', chart)
+            worksheet.insert_chart(f'{xl_col_to_name(start_col + 5)}2', chart)
 
 
 def calc_performance_from_value_history(daily_values: pd.Series) -> dict:

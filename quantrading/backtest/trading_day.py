@@ -22,32 +22,32 @@ class TradingDay:
                              end_date: datetime,
                              rebalancing_periodic: str,
                              rebalancing_moment: str) -> list:
+        assert rebalancing_periodic in ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']
+        assert rebalancing_moment in ['first', 'last']
+
         if rebalancing_periodic == 'daily':
             rebalancing_days = self.get_trading_day_list(start_date, end_date).to_list()
         elif rebalancing_periodic == 'weekly':
-            rebalancing_days = self.get_first_day_of_every_week(start_date, end_date)
+            if rebalancing_moment == 'first':
+                rebalancing_days = self.get_first_day_of_every_week(start_date, end_date)
+            else:
+                rebalancing_days = self.get_last_day_of_every_week(start_date, end_date)
         elif rebalancing_periodic == 'monthly':
             start_month = start_date.strftime("%Y-%m")
             end_month = end_date.strftime("%Y-%m")
             if rebalancing_moment == 'first':
                 rebalancing_days = self.get_first_day_of_every_month(start_month, end_month)
-            elif rebalancing_moment == 'last':
-                rebalancing_days = self.get_last_day_of_every_month(start_month, end_month)
             else:
-                raise ValueError("Invalid rebalancing_moment type : ", rebalancing_moment)
+                rebalancing_days = self.get_last_day_of_every_month(start_month, end_month)
         elif rebalancing_periodic == 'quarterly':
             start_quarter = f"{start_date.year}-{(start_date.month - 1) // 3 + 1}"
             end_quarter = f"{end_date.year}-{(end_date.month - 1) // 3 + 1}"
             rebalancing_days = self.get_first_day_of_report_month(start_quarter, end_quarter)
-        elif rebalancing_periodic == 'yearly':
+        else:
             if rebalancing_moment == 'first':
                 rebalancing_days = self.get_first_day_of_every_year(start_date.year, end_date.year)
-            elif rebalancing_moment == 'last':
-                rebalancing_days = self.get_last_day_of_every_year(start_date.year, end_date.year)
             else:
-                raise ValueError("Invalid rebalancing_moment type : ", rebalancing_moment)
-        else:
-            raise ValueError("Invalid rebalancing_periodic type : ", rebalancing_periodic)
+                rebalancing_days = self.get_last_day_of_every_year(start_date.year, end_date.year)
         return rebalancing_days
 
     def get_first_day_of_every_month(self, start_date: str, end_date: str):
@@ -116,6 +116,14 @@ class TradingDay:
         days = []
         for date in every_monday_list:
             temp_date = self.magnet(date, 1)
+            days.append(temp_date)
+        return days
+
+    def get_last_day_of_every_week(self, start_date: datetime, end_date: datetime) -> list:
+        every_friday_list = generate_every_friday(start_date, end_date)
+        days = []
+        for date in every_friday_list:
+            temp_date = self.magnet(date, 0)
             days.append(temp_date)
         return days
 
@@ -192,4 +200,9 @@ def generate_year_n_quarter(start_quarter: str, end_quarter: str):
 
 def generate_every_monday(start_date: datetime, end_date: datetime):
     every_monday_list = pd.date_range(start_date, end_date, freq="W-MON")
+    return every_monday_list
+
+
+def generate_every_friday(start_date: datetime, end_date: datetime):
+    every_monday_list = pd.date_range(start_date, end_date, freq="W-FRI")
     return every_monday_list
