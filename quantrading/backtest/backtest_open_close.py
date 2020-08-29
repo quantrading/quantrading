@@ -93,6 +93,7 @@ class OpenCloseStrategy(BackTestBase):
         for ticker, amount_delta in today_reserved_order.iteritems():
             if np.isneginf(amount_delta):
                 amount_delta = -self.portfolio.security_holding[ticker]
+                today_reserved_order[ticker] = -amount_delta
 
             if amount_delta > 0:
                 self.portfolio.buy(ticker, amount_delta)
