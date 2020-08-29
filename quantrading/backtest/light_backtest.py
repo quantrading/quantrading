@@ -1,7 +1,7 @@
 import pandas as pd
 from .trading_day import TradingDay
 from .utils import get_dynamic_weight_rebalancing_port_daily_value_df
-from .backtest import calc_performance_from_value_history
+from .simulation_result_utils import calc_performance_from_value_history
 
 
 class LightStrategy:

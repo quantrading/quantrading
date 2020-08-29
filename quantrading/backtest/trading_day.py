@@ -21,9 +21,9 @@ class TradingDay:
                              start_date: datetime,
                              end_date: datetime,
                              rebalancing_periodic: str,
-                             rebalancing_moment: str) -> list:
+                             rebalancing_moment: str or int) -> list:
         assert rebalancing_periodic in ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']
-        assert rebalancing_moment in ['first', 'last']
+        assert rebalancing_moment in ['first', 'last', *[i + 1 for i in range(31)]]
 
         if rebalancing_periodic == 'daily':
             rebalancing_days = self.get_trading_day_list(start_date, end_date).to_list()
@@ -37,6 +37,8 @@ class TradingDay:
             end_month = end_date.strftime("%Y-%m")
             if rebalancing_moment == 'first':
                 rebalancing_days = self.get_first_day_of_every_month(start_month, end_month)
+            elif rebalancing_moment in [i + 1 for i in range(31)]:
+                rebalancing_days = self.get_n_th_day_of_every_month(start_month, end_month, rebalancing_moment)
             else:
                 rebalancing_days = self.get_last_day_of_every_month(start_month, end_month)
         elif rebalancing_periodic == 'quarterly':
@@ -74,6 +76,17 @@ class TradingDay:
             temp_trading_days = self.get_trading_days_by_year_n_month(year, month)
             last_date = temp_trading_days.tolist()[-1]
             days.append(last_date)
+        return days
+
+    def get_n_th_day_of_every_month(self, start_date: str, end_date: str, n_th=15):
+        year_n_month_combination = generate_year_n_month(start_date, end_date)
+        days = []
+        for year, month in year_n_month_combination:
+            num_of_days = calendar.monthrange(year, month)[1]
+            date_list = pd.date_range(f'{year}-{month}-01', periods=num_of_days)
+            n_th_date = date_list[n_th - 1]
+            n_th_date = self.magnet(n_th_date, 0)
+            days.append(n_th_date)
         return days
 
     def magnet(self, date, flag):

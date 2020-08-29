@@ -7,6 +7,21 @@ SECURITY_HOLDING = "SECURITY_HOLDING"
 DEFAULT_SEED_MONEY = 100
 
 
+def convert_weight_delta(weight_delta_series: pd.Series) -> float:
+    """
+    전체 매도인 경우 -> -inf
+    current_weight == -weight_delta
+
+    (전체 매수 취급 안함)
+    """
+    current_weight = weight_delta_series['current']
+    weight_delta = weight_delta_series['weight_delta']
+
+    if current_weight == -weight_delta:
+        return -np.inf
+    return weight_delta
+
+
 class Portfolio:
     def __init__(self, **kwargs):
         self.cash = kwargs.get(INITIAL_MONEY, DEFAULT_SEED_MONEY)
@@ -34,17 +49,29 @@ class Portfolio:
         return allocations
 
     def set_allocations(self, new_allocations: pd.Series):
+        allocations_delta_df = self.get_allocations_delta(new_allocations)
+        for ticker, weight in allocations_delta_df["next"].items():
+            if ticker == "cash":
+                continue
+            self.set_weight(ticker, weight)
+
+    def get_allocations_delta(self, new_allocations: pd.Series) -> pd.DataFrame:
         current_allocations = self.get_allocations()
         allocations_df = pd.concat([current_allocations, new_allocations], axis=1, sort=False)
         allocations_df.columns = ["current", "next"]
         allocations_df = allocations_df.fillna(0)
         allocations_df["weight_delta"] = allocations_df["next"] - allocations_df["current"]
         allocations_df = allocations_df.sort_values("weight_delta", ascending=True)
+        return allocations_df
 
-        for ticker, weight in allocations_df["next"].items():
-            if ticker == "cash":
-                continue
-            self.set_weight(ticker, weight)
+    def get_amount_delta(self, new_allocations: pd.Series) -> pd.Series:
+        allocation_delta_df = self.get_allocations_delta(new_allocations)
+        allocation_delta_df['weight_delta'] = allocation_delta_df.apply(convert_weight_delta, axis=1)
+
+        allocation_delta_series = allocation_delta_df["weight_delta"]
+        portfolio_value = self.get_total_portfolio_value()
+        amount_delta_series = allocation_delta_series.multiply(portfolio_value)
+        return amount_delta_series
 
     def set_weight(self, ticker, weight):
         current_weight = self.get_weight(ticker)
