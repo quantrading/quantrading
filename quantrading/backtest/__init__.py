@@ -1,7 +1,7 @@
 from .backtest import (
-    Strategy,
-    save_simulation_result_to_excel_file
+    Strategy
 )
+from .simulation_result_utils import save_simulation_result_to_excel_file
 from .light_backtest import (
     LightStrategy
 )
@@ -12,4 +12,7 @@ from .utils import (
     get_static_weight_rebalancing_port_daily_value_df,
     get_dynamic_weight_rebalancing_port_daily_value_df,
     concat_simulation_result
+)
+from .backtest_open_close import (
+    OpenCloseStrategy
 )
