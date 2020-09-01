@@ -6,10 +6,17 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d"
 
 
 class TradingDay:
-    def __init__(self, trading_days: list):
+    def __init__(self, trading_days: list, close_day_policy="after"):
         self.all_trading_days = pd.Series(trading_days).sort_values().reset_index(drop=True)
         self.first_date = self.all_trading_days.iloc[0]
         self.last_date = self.all_trading_days.iloc[-1]
+
+        assert close_day_policy in ["after", "before"]
+
+        if close_day_policy == "after":
+            self.close_day_policy = 1
+        else:
+            self.close_day_policy = 0
 
     def get_trading_day_list(self, start_date: datetime, end_date: datetime) -> pd.Series:
         trading_days = self.all_trading_days
@@ -85,7 +92,7 @@ class TradingDay:
             num_of_days = calendar.monthrange(year, month)[1]
             date_list = pd.date_range(f'{year}-{month}-01', periods=num_of_days)
             n_th_date = date_list[n_th - 1]
-            n_th_date = self.magnet(n_th_date, 0)
+            n_th_date = self.magnet(n_th_date, self.close_day_policy)
             days.append(n_th_date)
         return days
 

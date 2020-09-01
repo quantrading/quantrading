@@ -23,10 +23,15 @@ class OpenCloseStrategy(BackTestBase):
         self.market_close_df = kwargs.get("market_close_df")
         self.rebalancing_periodic = kwargs.get("rebalancing_periodic", 'monthly')
         self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
+        self.close_day_policy = kwargs.get("close_day_policy", "after")
         self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
+        self.buy_delay = kwargs.get("buy_delay", 0)
+        self.sell_delay = kwargs.get("sell_delay", 0)
+        self.default_irregular_cool_time = kwargs.get("default_irregular_cool_time", 7)
 
         # set trading days & rebalancing days
-        trading_day = TradingDay(self.market_close_df.index.to_series().reset_index(drop=True))
+        trading_day = TradingDay(self.market_close_df.index.to_series().reset_index(drop=True),
+                                 close_day_policy=self.close_day_policy)
         self.trading_days = trading_day.get_trading_day_list(self.start_date, self.end_date).to_list()
         self.rebalancing_days = trading_day.get_rebalancing_days(self.start_date, self.end_date,
                                                                  self.rebalancing_periodic, self.rebalancing_moment)
@@ -43,6 +48,8 @@ class OpenCloseStrategy(BackTestBase):
         self.event_log = pd.DataFrame(columns=["datetime", "log"])
         self.reservation_order = {}
         self.selected_asset_counts = pd.Series()
+        self.irregular_rebalancing = False
+        self.irregular_cool_time = 0
 
     def initialize(self):
         pass
@@ -90,14 +97,24 @@ class OpenCloseStrategy(BackTestBase):
     def execute_reservation_order(self):
         today_reserved_order: pd.Series = self.reservation_order.get(self.date)
 
+        downsize_ratio = self.evaluate_buy_ability(today_reserved_order)
+
         for ticker, amount_delta in today_reserved_order.iteritems():
             if np.isneginf(amount_delta):
-                amount_delta = -self.portfolio.security_holding[ticker]
-                today_reserved_order[ticker] = -amount_delta
+                amount_delta = -self.portfolio.security_holding.get(ticker, 0)
+                today_reserved_order[ticker] = amount_delta
+
+            if amount_delta == 0:
+                continue
 
             if amount_delta > 0:
+                if downsize_ratio < 1:
+                    amount_delta *= downsize_ratio
                 self.portfolio.buy(ticker, amount_delta)
             else:
+                if self.portfolio.security_holding.get(ticker, 0) == 0:
+                    continue
+
                 self.portfolio.sell(ticker, -amount_delta)
 
         port_value = self.portfolio.get_total_portfolio_value()
@@ -105,8 +122,29 @@ class OpenCloseStrategy(BackTestBase):
         reservation_order_series.name = self.date
         self.order_weight_df = pd.concat([self.order_weight_df, reservation_order_series.to_frame().T], axis=0)
 
-    def reserve_order(self, amount_series: pd.Series, date: datetime):
-        self.reservation_order[date] = amount_series
+    def reserve_order(self, amount_series: pd.Series, order_type: str):
+        assert order_type in ["buy", "sell"]
+
+        if order_type == "buy":
+            date = self.get_date(delta=self.buy_delay)
+        else:
+            date = self.get_date(delta=self.sell_delay)
+
+        if date in self.reservation_order.keys():
+            prev_amount_series = self.reservation_order[date]
+            self.reservation_order[date] = prev_amount_series.add(amount_series, fill_value=0)
+        else:
+            self.reservation_order[date] = amount_series
+
+    def evaluate_buy_ability(self, order_series: pd.Series) -> float:
+        cash = self.portfolio.cash
+        accumulated_amount = 0
+        for ticker, amount_delta in order_series.iteritems():
+            if amount_delta > 0:
+                accumulated_amount += amount_delta
+        if accumulated_amount == 0:
+            return 1
+        return cash / accumulated_amount
 
     def log_event(self, msg: str):
         self.event_log.loc[len(self.event_log)] = [self.date, msg]
@@ -120,6 +158,16 @@ class OpenCloseStrategy(BackTestBase):
 
     def is_rebalancing_day(self):
         today = self.date
+
+        if self.irregular_rebalancing:
+            if self.irregular_cool_time == 0:
+                self.irregular_cool_time = self.default_irregular_cool_time
+                self.irregular_rebalancing = False
+                return True
+            else:
+                self.irregular_cool_time -= 1
+                return False
+
         if today in self.rebalancing_days:
             return True
         else:
