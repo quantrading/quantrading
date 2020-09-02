@@ -50,6 +50,7 @@ class OpenCloseStrategy(BackTestBase):
         self.selected_asset_counts = pd.Series()
         self.irregular_rebalancing = False
         self.irregular_cool_time = 0
+        self.portfolio_log_series_df = pd.DataFrame()
 
     def initialize(self):
         pass
@@ -160,12 +161,12 @@ class OpenCloseStrategy(BackTestBase):
         today = self.date
 
         if self.irregular_rebalancing:
-            if self.irregular_cool_time == 0:
+            self.irregular_cool_time -= 1
+            if self.irregular_cool_time <= 0:
                 self.irregular_cool_time = self.default_irregular_cool_time
                 self.irregular_rebalancing = False
                 return True
             else:
-                self.irregular_cool_time -= 1
                 return False
 
         if today in self.rebalancing_days:
@@ -212,6 +213,9 @@ class OpenCloseStrategy(BackTestBase):
     def get_daily_return(self):
         return self.portfolio_log['port_value'].pct_change()
 
+    def add_series_to_portfolio_log(self, series: pd.Series):
+        self.portfolio_log_series_df = pd.concat([self.portfolio_log_series_df, series], axis=1)
+
     def get_result(self):
         portfolio_log = self.portfolio_log
         event_log = self.event_log
@@ -234,7 +238,12 @@ class OpenCloseStrategy(BackTestBase):
         performance['annual_summary'] = annual_summary
 
         port_drawdown = performance.get("drawdown")
-        portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
+        if len(self.portfolio_log_series_df) > 0:
+            portfolio_index = portfolio_log.index
+            portfolio_log = pd.concat([portfolio_log, port_drawdown, self.portfolio_log_series_df], axis=1)
+            portfolio_log = portfolio_log.reindex(portfolio_index)
+        else:
+            portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
         performance["portfolio_log"] = portfolio_log
 
         result = dict()
