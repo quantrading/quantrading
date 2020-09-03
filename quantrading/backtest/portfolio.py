@@ -90,13 +90,13 @@ class Portfolio:
             pass
 
     def update_holdings_value(self, today_date: datetime, market_df_pct_change: pd.DataFrame):
-        prev_holdings = self.security_holding.items()
-        for ticker, amount in prev_holdings:
-            daily_returns = market_df_pct_change.loc[today_date, ticker]
-            if np.isnan(daily_returns):
-                continue
-            new_amount = amount * (1 + daily_returns)
-            self.security_holding[ticker] = new_amount
+        tickers = self.security_holding.keys()
+        amount_list = list(self.security_holding.values())
+
+        prev_amount_series = pd.Series(amount_list, index=tickers)
+        daily_returns_series = market_df_pct_change.loc[today_date, tickers].fillna(0)
+        new_amount_series = prev_amount_series * (1 + daily_returns_series)
+        self.security_holding = dict(zip(new_amount_series.index, new_amount_series.values))
 
     def get_weight(self, ticker):
         amount = self.security_holding.get(ticker, 0)

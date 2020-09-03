@@ -27,7 +27,7 @@ class Strategy(BackTestBase):
         self.market_df_pct_change = self.market_df.pct_change()
 
         self.portfolio = Portfolio()
-        self.portfolio_log = pd.DataFrame()
+        self.portfolio_log = pd.DataFrame(columns=['port_value', 'cash'])
         self.order_weight_df = pd.DataFrame()
         self.simulation_status = {}
         self.simulation_result = {}
@@ -35,6 +35,7 @@ class Strategy(BackTestBase):
         self.exist_reservation_order = False
         self.reservation_order = pd.Series()
         self.selected_asset_counts = pd.Series()
+        self.daily_log_list = []
 
     def initialize(self):
         pass
@@ -107,17 +108,18 @@ class Strategy(BackTestBase):
         self.log_portfolio_value()
 
     def on_end_of_algorithm(self):
-        pass
+        self.portfolio_log = pd.concat(self.daily_log_list, axis=1).T
 
     def log_portfolio_value(self):
         port_value = self.portfolio.get_total_portfolio_value()
         cash = self.portfolio.cash
+        series = pd.Series(self.portfolio.security_holding)
+        series.index = [ticker + "_amount" for ticker in series.index]
+        series.name = self.date
 
-        self.portfolio_log.loc[self.date, "port_value"] = port_value
-        self.portfolio_log.loc[self.date, "cash"] = cash
-
-        for ticker, amount in self.portfolio.security_holding.items():
-            self.portfolio_log.loc[self.date, ticker + "_amount"] = amount
+        series.loc["port_value"] = port_value
+        series.loc["cash"] = cash
+        self.daily_log_list.append(series)
 
     def update_portfolio_value(self):
         self.portfolio.update_holdings_value(self.date, self.market_df_pct_change)

@@ -23,9 +23,9 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
 
         workbook = writer.book
 
-        if len(event_log) > 0:
+        if event_log is not None and len(event_log) > 0:
             event_log.to_excel(writer, sheet_name="event log")
-        if len(rebalancing_weight) > 0:
+        if rebalancing_weight is not None and len(rebalancing_weight) > 0:
             rebalancing_weight.to_excel(writer, sheet_name="리밸런싱 비중")
         
         if order_weight is not None:
