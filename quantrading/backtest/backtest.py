@@ -46,16 +46,14 @@ class Strategy(BackTestBase):
     def run(self):
         self.initialize()
 
-        end_date = self.end_date
-        while self.date <= end_date:
-            if self.is_trading_day():
-                self.on_start_of_day()
-                if self.exist_reservation_order:
-                    self.execute_reservation_order()
-                if self.is_rebalancing_day(self.on_data_before_n_days_of_rebalacing_days):
-                    self.on_data()
-                self.on_end_of_day()
-            self.date += timedelta(days=1)
+        for date in self.trading_days:
+            self.date = date
+            self.on_start_of_day()
+            if self.exist_reservation_order:
+                self.execute_reservation_order()
+            if self.is_rebalancing_day(self.on_data_before_n_days_of_rebalacing_days):
+                self.on_data()
+            self.on_end_of_day()
         self.on_end_of_algorithm()
 
     def execute_reservation_order(self):
@@ -73,13 +71,6 @@ class Strategy(BackTestBase):
 
     def log_event(self, msg: str):
         self.event_log.loc[len(self.event_log)] = [self.date, msg]
-
-    def is_trading_day(self):
-        today = self.date
-        if today in self.trading_days:
-            return True
-        else:
-            return False
 
     def is_rebalancing_day(self, next_n_trading_days):
         today = self.date

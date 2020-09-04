@@ -41,11 +41,9 @@ class Portfolio:
             del self.security_holding[ticker]
 
     def get_allocations(self) -> pd.Series:
-        allocations = pd.Series()
-        for ticker in self.security_holding.keys():
-            allocations.loc[ticker] = self.get_weight(ticker)
-
-        allocations.loc["cash"] = 1 - allocations.sum()
+        allocations = pd.Series(self.security_holding)
+        allocations.loc["cash"] = self.cash
+        allocations = allocations / allocations.sum()
         return allocations
 
     def set_allocations(self, new_allocations: pd.Series):
@@ -92,7 +90,6 @@ class Portfolio:
     def update_holdings_value(self, today_date: datetime, market_df_pct_change: pd.DataFrame):
         tickers = self.security_holding.keys()
         amount_list = list(self.security_holding.values())
-
         prev_amount_series = pd.Series(amount_list, index=tickers)
         daily_returns_series = market_df_pct_change.loc[today_date, tickers].fillna(0)
         new_amount_series = prev_amount_series * (1 + daily_returns_series)
