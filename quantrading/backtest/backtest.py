@@ -16,8 +16,6 @@ class Strategy(BackTestBase):
         self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
         self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
 
-        self.on_data_before_n_days_of_rebalacing_days = kwargs.get('on_data_before_n_days_of_rebalacing_days', 1)
-
         # set trading days & rebalancing days
         trading_day = TradingDay(self.market_df.index.to_series().reset_index(drop=True))
         self.trading_days = trading_day.get_trading_day_list(self.start_date, self.end_date).to_list()
@@ -36,6 +34,7 @@ class Strategy(BackTestBase):
         self.reservation_order = pd.Series()
         self.selected_asset_counts = pd.Series()
         self.daily_log_list = []
+        self.returns_until_next_rebal_series = None
 
     def initialize(self):
         pass
@@ -51,7 +50,7 @@ class Strategy(BackTestBase):
             self.on_start_of_day()
             if self.exist_reservation_order:
                 self.execute_reservation_order()
-            if self.is_rebalancing_day(self.on_data_before_n_days_of_rebalacing_days):
+            if self.is_rebalancing_day():
                 self.on_data()
             self.on_end_of_day()
         self.on_end_of_algorithm()
@@ -72,21 +71,9 @@ class Strategy(BackTestBase):
     def log_event(self, msg: str):
         self.event_log.loc[len(self.event_log)] = [self.date, msg]
 
-    def is_rebalancing_day(self, next_n_trading_days):
+    def is_rebalancing_day(self):
         today = self.date
-
-        if today == self.start_date:
-            if today in self.rebalancing_days:
-                return True
-            else:
-                return False
-
-        target_date_index = self.trading_days.index(today) + next_n_trading_days
-        if target_date_index >= len(self.trading_days):
-            return False
-
-        target_date = self.trading_days[target_date_index]
-        if target_date in self.rebalancing_days:
+        if today in self.rebalancing_days:
             return True
         else:
             return False
@@ -100,6 +87,15 @@ class Strategy(BackTestBase):
 
     def on_end_of_algorithm(self):
         self.portfolio_log = pd.concat(self.daily_log_list, axis=1).T
+        returns_until_next_rebal = (
+            self.portfolio_log["port_value"]
+                .reindex(self.rebalancing_days)
+                .pct_change()
+                .shift(-1)
+                .dropna()
+        )
+        returns_until_next_rebal.name = self.name_for_result_column
+        self.returns_until_next_rebal_series = returns_until_next_rebal
 
     def log_portfolio_value(self):
         port_value = self.portfolio.get_total_portfolio_value()
@@ -144,6 +140,7 @@ class Strategy(BackTestBase):
         port_drawdown = performance.get("drawdown")
         portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
         performance["portfolio_log"] = portfolio_log
+        performance["returns_until_next_rebal"] = self.returns_until_next_rebal_series
 
         result = dict()
         result['performance'] = performance

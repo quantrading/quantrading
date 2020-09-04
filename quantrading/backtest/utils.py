@@ -2,17 +2,35 @@ import pandas as pd
 import empyrical
 
 
-def divide_code_list_by_quantiles(asset_series: pd.Series, quantiles: int, target_tile: int) -> tuple:
+def divide_code_list_by_quantiles(asset_series: pd.Series, quantiles: int, target_tile: int, ascending=False) -> tuple:
     counts_per_division = len(asset_series) / quantiles
     counts_per_division = int(counts_per_division)
 
     tile = target_tile
 
-    reversed_asset_series = asset_series.sort_values(ascending=False)
+    if ascending is True:
+        reversed_asset_series = asset_series.sort_values(ascending=False)
+    else:
+        reversed_asset_series = asset_series.sort_values(ascending=True)
 
     first_quantile = asset_series.index.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
     last_quantile = reversed_asset_series.index.to_list()[counts_per_division * tile: counts_per_division * (tile + 1)]
     return first_quantile, last_quantile
+
+
+def divide_code_list_by_percentile(series: pd.Series, start_percentile: int, end_percentile: int) -> list:
+    assert 0 <= start_percentile <= 100
+    assert 0 <= end_percentile <= 100
+
+    counts = len(series)
+
+    ticker_list = series.index.to_list()
+    one_block = counts / 100
+
+    start_idx = int(one_block * start_percentile)
+    end_idx = int(one_block * end_percentile)
+
+    return ticker_list[start_idx:end_idx]
 
 
 def apply_equal_weights(code_list: list, for_short=False, exposure=1) -> dict:
@@ -147,7 +165,7 @@ def merge_portfolio_log(algorithm_list):
     return result_portfolio_log
 
 
-def concat_simulation_result(result_list) -> dict:
+def concat_simulation_result(result_list, **kwargs) -> dict:
     concated_performance = {}
 
     performance_list = [result['performance'] for result in result_list]
@@ -156,6 +174,7 @@ def concat_simulation_result(result_list) -> dict:
     monthly_returns_df = pd.DataFrame()
     annual_summary_df = pd.DataFrame()
     performance_summary_df = pd.DataFrame()
+    returns_until_next_rebal_df = pd.DataFrame()
     for performance in performance_list:
         port_value = performance['portfolio_log'].iloc[:, 0]
         port_value_df = pd.concat([port_value_df, port_value], axis=1)
@@ -169,10 +188,18 @@ def concat_simulation_result(result_list) -> dict:
         performance_summary = performance['performance_summary']
         performance_summary_df = pd.concat([performance_summary_df, performance_summary], axis=1)
 
+        returns_until_next_rebal = performance['returns_until_next_rebal']
+        returns_until_next_rebal_df = pd.concat([returns_until_next_rebal_df, returns_until_next_rebal], axis=1)
+
+    custom_df = kwargs.get("custom_df", None)
+    if custom_df is not None:
+        returns_until_next_rebal_df = pd.concat([returns_until_next_rebal_df, custom_df], axis=1)
+
     concated_performance['portfolio_log'] = port_value_df
     concated_performance['monthly_returns'] = monthly_returns_df
     concated_performance['annual_summary'] = annual_summary_df
     concated_performance['performance_summary'] = performance_summary_df
+    concated_performance['returns_until_next_rebal'] = returns_until_next_rebal_df
     return {
         "performance": concated_performance
     }

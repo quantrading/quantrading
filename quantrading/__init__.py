@@ -32,6 +32,7 @@ from .backtest import (
     apply_equal_weights,
     get_static_weight_rebalancing_port_daily_value_df,
     get_no_rebalancing_port_daily_value_df,
-    get_dynamic_weight_rebalancing_port_daily_value_df
+    get_dynamic_weight_rebalancing_port_daily_value_df,
+    divide_code_list_by_percentile
 )
 from .simulation import monte_carlo

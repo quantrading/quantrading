@@ -15,6 +15,8 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
     monthly_returns = performance["monthly_returns"]
     annual_summary = performance["annual_summary"]
     performance_summary = performance["performance_summary"]
+    returns_until_next_rebal = performance.get('returns_until_next_rebal', None)
+
     with pd.ExcelWriter(path, datetime_format="yyyy-mm-dd") as writer:
         portfolio_log.to_excel(writer, sheet_name="portfolio log")
         monthly_returns.to_excel(writer, sheet_name="월별수익률")
@@ -30,6 +32,9 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
         
         if order_weight is not None:
             order_weight.to_excel(writer, sheet_name="주문 비중")
+
+        if returns_until_next_rebal is not None:
+            returns_until_next_rebal.to_excel(writer, sheet_name="리밸간 수익률")
 
         if display_value_chart:
             sheet_name = 'portfolio log'
