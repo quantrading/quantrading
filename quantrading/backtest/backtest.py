@@ -1,35 +1,17 @@
 import pandas as pd
-from datetime import timedelta
-from .portfolio import Portfolio
 from .simulation_result_utils import calc_performance_from_value_history
-from .trading_day import TradingDay
 from .backtest_base import BackTestBase
 
 
 class Strategy(BackTestBase):
     def __init__(self, **kwargs):
-        self.name = kwargs.get("name")
-        self.start_date = kwargs.get("start_date")
-        self.end_date = kwargs.get("end_date")
-        self.market_df = kwargs.get("market_df")
-        self.rebalancing_periodic = kwargs.get("rebalancing_periodic", 'monthly')
-        self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
-        self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
+        super().__init__(**kwargs)
 
-        # set trading days & rebalancing days
-        trading_day = TradingDay(self.market_df.index.to_series().reset_index(drop=True))
-        self.trading_days = trading_day.get_trading_day_list(self.start_date, self.end_date).to_list()
-        self.rebalancing_days = trading_day.get_rebalancing_days(self.start_date, self.end_date,
-                                                                 self.rebalancing_periodic, self.rebalancing_moment)
         self.date = self.start_date
-        self.market_df_pct_change = self.market_df.pct_change()
+        self.market_df_pct_change = self.market_close_df.pct_change()
 
-        self.portfolio = Portfolio()
-        self.portfolio_log = pd.DataFrame(columns=['port_value', 'cash'])
-        self.order_weight_df = pd.DataFrame()
         self.simulation_status = {}
         self.simulation_result = {}
-        self.event_log = pd.DataFrame(columns=["datetime", "log"])
         self.exist_reservation_order = False
         self.reservation_order = pd.Series()
         self.selected_asset_counts = pd.Series()
@@ -139,6 +121,10 @@ class Strategy(BackTestBase):
 
         port_drawdown = performance.get("drawdown")
         portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
+
+        if self.benchmark_value_series is not None:
+            portfolio_log = pd.concat([portfolio_log, self.benchmark_value_series], axis=1)
+
         performance["portfolio_log"] = portfolio_log
         performance["returns_until_next_rebal"] = self.returns_until_next_rebal_series
 

@@ -26,14 +26,16 @@ if __name__ == "__main__":
     market_df = market_df.ffill()
 
     simulation_args = {
-        "market_df": market_df,
-        "name": "주식8 채권2 전략",
+        "market_close_df": market_df,
+        "name": "Strategy 주식8 채권2 전략",
         "start_date": datetime(2005, 1, 1),
         "end_date": datetime(2020, 7, 31),
         "rebalancing_periodic": "monthly",
         "rebalancing_moment": "first",
+        "benchmark_ticker": "MSCI_WORLD_ACWI"
     }
 
     strategy = MyStrategy(**simulation_args)
     strategy.run()
+    strategy.print_result_log(display_image=True)
     strategy.result_to_excel(folder_path="simulation_result")

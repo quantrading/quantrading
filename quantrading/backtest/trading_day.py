@@ -51,7 +51,10 @@ class TradingDay:
         elif rebalancing_periodic == 'quarterly':
             start_quarter = f"{start_date.year}-{(start_date.month - 1) // 3 + 1}"
             end_quarter = f"{end_date.year}-{(end_date.month - 1) // 3 + 1}"
-            rebalancing_days = self.get_first_day_of_report_month(start_quarter, end_quarter)
+            if rebalancing_moment == "first":
+                rebalancing_days = self.get_first_day_of_report_month(start_quarter, end_quarter)
+            else:
+                rebalancing_days = self.get_last_day_of_report_month(start_quarter, end_quarter)
         else:
             if rebalancing_moment == 'first':
                 rebalancing_days = self.get_first_day_of_every_year(start_date.year, end_date.year)
@@ -120,14 +123,30 @@ class TradingDay:
         trading_date_series = self.get_trading_day_list(start_date, end_date)
         return trading_date_series
 
-    def get_first_day_of_report_month(self, start_date: str, end_date: str):
+    def get_first_day_of_report_month(self, start_date: str, end_date: str, quarterly_month_list=None):
+        if quarterly_month_list is None:
+            quarterly_month_list = [1, 4, 7, 10]
         year_n_month_combination = generate_year_n_month(start_date, end_date)
         days = []
         for year, month in year_n_month_combination:
-            if month not in [4, 6, 9, 12]:
+            if month not in quarterly_month_list:
                 continue
             first_date = f"{year}-{month}-1"
             temp_date = self.magnet(first_date, 1)
+            days.append(temp_date)
+        return days
+
+    def get_last_day_of_report_month(self, start_date: str, end_date: str, quarterly_month_list=None):
+        if quarterly_month_list is None:
+            quarterly_month_list = [3, 6, 9, 12]
+        year_n_month_combination = generate_year_n_month(start_date, end_date)
+        days = []
+        for year, month in year_n_month_combination:
+            if month not in quarterly_month_list:
+                continue
+            last_day_num = calendar.monthrange(year, month)[1]
+            last_date = f"{year}-{month}-{last_day_num}"
+            temp_date = self.magnet(last_date, 0)
             days.append(temp_date)
         return days
 

@@ -3,3 +3,4 @@ wheel
 empyrical
 openpyxl
 xlsxwriter
+plotly

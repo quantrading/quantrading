@@ -1,9 +1,6 @@
 import pandas as pd
 from datetime import timedelta
-from .portfolio import Portfolio
 from .simulation_result_utils import calc_performance_from_value_history
-from .trading_day import TradingDay
-from datetime import datetime
 import numpy as np
 from .backtest_base import BackTestBase
 
@@ -16,36 +13,20 @@ class OpenCloseStrategy(BackTestBase):
     """
 
     def __init__(self, **kwargs):
-        self.name = kwargs.get("name")
-        self.start_date = kwargs.get("start_date")
-        self.end_date = kwargs.get("end_date")
+        super().__init__(**kwargs)
         self.market_open_price_df = kwargs.get("market_open_price_df")
-        self.market_close_df = kwargs.get("market_close_df")
-        self.rebalancing_periodic = kwargs.get("rebalancing_periodic", 'monthly')
-        self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
-        self.close_day_policy = kwargs.get("close_day_policy", "after")
-        self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
         self.buy_delay = kwargs.get("buy_delay", 0)
         self.sell_delay = kwargs.get("sell_delay", 0)
         self.default_irregular_cool_time = kwargs.get("default_irregular_cool_time", 7)
 
-        # set trading days & rebalancing days
-        trading_day = TradingDay(self.market_close_df.index.to_series().reset_index(drop=True),
-                                 close_day_policy=self.close_day_policy)
-        self.trading_days = trading_day.get_trading_day_list(self.start_date, self.end_date).to_list()
-        self.rebalancing_days = trading_day.get_rebalancing_days(self.start_date, self.end_date,
-                                                                 self.rebalancing_periodic, self.rebalancing_moment)
         self.date = self.start_date
         # 당일 시가와 당일 종가 비교
         self.market_intraday_pct_change = self.market_close_df.divide(self.market_open_price_df) - 1
 
         # 시가는 전일 종가와 비교
         self.market_open_df_pct_change = self.market_open_price_df.divide(self.market_close_df.shift(1)) - 1
-        self.portfolio = Portfolio()
-        self.portfolio_log = pd.DataFrame()
+
         self.rebalancing_mp_weight = pd.DataFrame()
-        self.order_weight_df = pd.DataFrame()
-        self.event_log = pd.DataFrame(columns=["datetime", "log"])
         self.reservation_order = {}
         self.selected_asset_counts = pd.Series()
         self.irregular_rebalancing = False
@@ -244,6 +225,10 @@ class OpenCloseStrategy(BackTestBase):
             portfolio_log = portfolio_log.reindex(portfolio_index)
         else:
             portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
+
+        if self.benchmark_value_series is not None:
+            portfolio_log = pd.concat([portfolio_log, self.benchmark_value_series], axis=1)
+
         performance["portfolio_log"] = portfolio_log
 
         result = dict()

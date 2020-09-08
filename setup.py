@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="quantrading",
-    version='0.1.25',
+    version='0.1.26',
     url="https://github.com/quantrading/quantrading",
     license="MIT",
     author="Jang Woo Jae",
@@ -15,6 +15,7 @@ setup(
         'empyrical',
         'openpyxl',
         'xlsxwriter',
+        'plotly',
     ],
     packages=find_packages(exclude=['tests', 'docs']),
     python_requires='>=3',
