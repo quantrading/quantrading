@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="quantrading",
-    version='0.1.26',
+    version='0.1.27',
     url="https://github.com/quantrading/quantrading",
     license="MIT",
     author="Jang Woo Jae",

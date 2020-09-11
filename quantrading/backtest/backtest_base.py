@@ -45,8 +45,15 @@ class BackTestBase(metaclass=ABCMeta):
         else:
             self.benchmark_value_series = None
 
-    @abstractmethod
     def get_result(self):
+        portfolio_log = self.portfolio_log
+        event_log = self.event_log
+        result = self.get_result_from_portfolio_log(portfolio_log)
+        result['event_log'] = event_log
+        return result
+
+    @abstractmethod
+    def get_result_from_portfolio_log(self, portfolio_log) -> dict:
         pass
 
     def print_result_log(self, display_image=False):
@@ -105,20 +112,35 @@ class BackTestBase(metaclass=ABCMeta):
                 if display_image:
                     fig.show()
 
-        rebalancing_weight = result.get("rebalancing_weight", None)
-        if rebalancing_weight is not None:
-            x = rebalancing_weight.index
+        asset_weight = result.get("asset_weight", None)
+        if asset_weight is not None:
+            x = asset_weight.index
             fig = go.Figure()
-            for ticker in rebalancing_weight.columns:
-                fig.add_trace(go.Scatter(
-                    x=x,
-                    y=rebalancing_weight[ticker],
-                    mode='lines',
-                    stackgroup='one',
-                    name=ticker
-                ))
+            for i, ticker in enumerate(asset_weight.columns):
+                if i == 0:
+                    fig.add_trace(go.Scatter(
+                        x=x,
+                        y=asset_weight[ticker],
+                        mode='lines',
+                        stackgroup='one',
+                        name=ticker,
+                        groupnorm='percent'
+                    ))
+                else:
+                    fig.add_trace(go.Scatter(
+                        x=x,
+                        y=asset_weight[ticker],
+                        mode='lines',
+                        stackgroup='one',
+                        name=ticker,
+                    ))
 
-            fig.update_layout(yaxis_range=(0, 1))
+            fig.update_layout(
+                showlegend=True,
+                yaxis=dict(
+                    type='linear',
+                    range=[1, 100],
+                    ticksuffix='%'))
             if display_image:
                 fig.show()
 

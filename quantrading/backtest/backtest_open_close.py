@@ -79,8 +79,8 @@ class OpenCloseStrategy(BackTestBase):
     def execute_reservation_order(self):
         today_reserved_order: pd.Series = self.reservation_order.get(self.date)
 
-        downsize_ratio = self.evaluate_buy_ability(today_reserved_order)
-
+        buy_series = pd.Series()
+        sell_series = pd.Series()
         for ticker, amount_delta in today_reserved_order.iteritems():
             if np.isneginf(amount_delta):
                 amount_delta = -self.portfolio.security_holding.get(ticker, 0)
@@ -90,14 +90,21 @@ class OpenCloseStrategy(BackTestBase):
                 continue
 
             if amount_delta > 0:
-                if downsize_ratio < 1:
-                    amount_delta *= downsize_ratio
-                self.portfolio.buy(ticker, amount_delta)
+                buy_series.loc[ticker] = amount_delta
             else:
                 if self.portfolio.security_holding.get(ticker, 0) == 0:
                     continue
+                sell_series.loc[ticker] = -amount_delta
 
-                self.portfolio.sell(ticker, -amount_delta)
+        for ticker, amount in sell_series.iteritems():
+            self.portfolio.sell(ticker, amount)
+
+        downsize_ratio = self.evaluate_buy_ability(buy_series)
+
+        for ticker, amount in buy_series.iteritems():
+            if downsize_ratio < 1:
+                amount *= downsize_ratio
+            self.portfolio.buy(ticker, amount)
 
         port_value = self.portfolio.get_total_portfolio_value()
         reservation_order_series = today_reserved_order / port_value
@@ -197,13 +204,6 @@ class OpenCloseStrategy(BackTestBase):
     def add_series_to_portfolio_log(self, series: pd.Series):
         self.portfolio_log_series_df = pd.concat([self.portfolio_log_series_df, series], axis=1)
 
-    def get_result(self):
-        portfolio_log = self.portfolio_log
-        event_log = self.event_log
-        result = self.get_result_from_portfolio_log(portfolio_log)
-        result['event_log'] = event_log
-        return result
-
     def get_result_from_portfolio_log(self, portfolio_log):
         port_col_name = self.name_for_result_column
         portfolio_log = portfolio_log.rename(columns={'port_value': port_col_name})
@@ -213,7 +213,6 @@ class OpenCloseStrategy(BackTestBase):
         performance_summary.name = port_col_name
 
         annual_summary = performance.get('annual_summary')
-
         multi_index = pd.MultiIndex.from_product([[port_col_name], annual_summary.columns])
         annual_summary = pd.DataFrame(annual_summary.values, columns=multi_index, index=annual_summary.index.tolist())
         performance['annual_summary'] = annual_summary
@@ -231,8 +230,15 @@ class OpenCloseStrategy(BackTestBase):
 
         performance["portfolio_log"] = portfolio_log
 
+        asset_list = []
+        for column in portfolio_log.columns:
+            if column == "cash" or '_amount' in column:
+                asset_list.append(column)
+        asset_weight_df = self.portfolio_log[asset_list]
+
         result = dict()
         result['performance'] = performance
         result['rebalancing_weight'] = self.rebalancing_mp_weight
         result['order_weight'] = self.order_weight_df
+        result['asset_weight'] = asset_weight_df
         return result

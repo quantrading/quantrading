@@ -96,13 +96,6 @@ class Strategy(BackTestBase):
     def get_daily_return(self):
         return self.portfolio_log['port_value'].pct_change()
 
-    def get_result(self):
-        portfolio_log = self.portfolio_log
-        event_log = self.event_log
-        result = self.get_result_from_portfolio_log(portfolio_log)
-        result['event_log'] = event_log
-        return result
-
     def get_result_from_portfolio_log(self, portfolio_log):
         port_col_name = self.name_for_result_column
         portfolio_log = portfolio_log.rename(columns={'port_value': port_col_name})
@@ -112,12 +105,9 @@ class Strategy(BackTestBase):
         performance_summary.name = port_col_name
 
         annual_summary = performance.get('annual_summary')
-
         multi_index = pd.MultiIndex.from_product([[port_col_name], annual_summary.columns])
         annual_summary = pd.DataFrame(annual_summary.values, columns=multi_index, index=annual_summary.index.tolist())
         performance['annual_summary'] = annual_summary
-
-        rebalancing_weight = self.order_weight_df
 
         port_drawdown = performance.get("drawdown")
         portfolio_log = pd.concat([portfolio_log, port_drawdown], axis=1)
@@ -128,9 +118,18 @@ class Strategy(BackTestBase):
         performance["portfolio_log"] = portfolio_log
         performance["returns_until_next_rebal"] = self.returns_until_next_rebal_series
 
+        rebalancing_weight = self.order_weight_df
+
+        asset_list = []
+        for column in portfolio_log.columns:
+            if column == "cash" or '_amount' in column:
+                asset_list.append(column)
+        asset_weight_df = self.portfolio_log[asset_list]
+
         result = dict()
         result['performance'] = performance
         result['rebalancing_weight'] = rebalancing_weight
+        result['asset_weight'] = asset_weight_df
         return result
 
     def selected_asset_counts_to_csv(self, file_name=None, folder_path=None):
