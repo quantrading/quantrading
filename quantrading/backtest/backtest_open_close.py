@@ -76,6 +76,17 @@ class OpenCloseStrategy(BackTestBase):
             self.date += timedelta(days=1)
         self.on_end_of_algorithm()
 
+    def set_allocation(self, allocation_series: pd.Series):
+        self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T], axis=0)
+
+        amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
+        amount_delta_series.pop('cash')
+        sell_amount_series = amount_delta_series[amount_delta_series < 0]
+        buy_amount_series = amount_delta_series[amount_delta_series > 0]
+
+        self.reserve_order(sell_amount_series, "sell")
+        self.reserve_order(buy_amount_series, "buy")
+
     def execute_reservation_order(self):
         today_reserved_order: pd.Series = self.reservation_order.get(self.date)
 
