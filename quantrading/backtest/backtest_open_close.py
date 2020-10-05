@@ -19,16 +19,13 @@ class OpenCloseStrategy(BackTestBase):
         self.sell_delay = kwargs.get("sell_delay", 0)
         self.default_irregular_cool_time = kwargs.get("default_irregular_cool_time", 7)
 
-        self.date = self.start_date
         # 당일 시가와 당일 종가 비교
         self.market_intraday_pct_change = self.market_close_df.divide(self.market_open_price_df) - 1
 
         # 시가는 전일 종가와 비교
         self.market_open_df_pct_change = self.market_open_price_df.divide(self.market_close_df.shift(1)) - 1
 
-        self.rebalancing_mp_weight = pd.DataFrame()
         self.reservation_order = {}
-        self.selected_asset_counts = pd.Series()
         self.irregular_rebalancing = False
         self.irregular_cool_time = 0
         self.portfolio_log_series_df = pd.DataFrame()
@@ -50,8 +47,7 @@ class OpenCloseStrategy(BackTestBase):
                 2-2-1. execute_reservation_order()
 
             2-3. 오늘 리밸런싱 날인가?
-                2-3-1. on_d
-                ata()
+                2-3-1. on_data()
 
             2-4. on_end_of_day()
 
@@ -179,9 +175,10 @@ class OpenCloseStrategy(BackTestBase):
     def on_end_of_day(self):
         self.update_portfolio_value('close')
         self.log_portfolio_value()
+        self.log_port_weight()
 
     def on_end_of_algorithm(self):
-        pass
+        self.port_weight_df = pd.concat(self.port_weight_series_list, axis=0)
 
     def get_date(self, delta=0):
         cur_date_idx = self.trading_days.index(self.date)
@@ -252,4 +249,5 @@ class OpenCloseStrategy(BackTestBase):
         result['rebalancing_weight'] = self.rebalancing_mp_weight
         result['order_weight'] = self.order_weight_df
         result['asset_weight'] = asset_weight_df
+        result['portfolio_weight_history'] = self.port_weight_df.fillna(0)
         return result

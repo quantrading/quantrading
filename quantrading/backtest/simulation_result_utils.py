@@ -4,12 +4,13 @@ from xlsxwriter.utility import xl_col_to_name
 from .. import performance_utils
 
 
-def save_simulation_result_to_excel_file(result: dict, path: str, display_value_chart=False,
+def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_chart=False,
                                          compare_with_bench=False) -> None:
     performance = result['performance']
     event_log = result.get('event_log', None)
     rebalancing_weight = result.get('rebalancing_weight', None)
     order_weight = result.get('order_weight', None)
+    portfolio_weight_history_df = result.get('portfolio_weight_history', None)
 
     portfolio_log = performance["portfolio_log"]
     monthly_returns = performance["monthly_returns"]
@@ -27,8 +28,6 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
 
         if event_log is not None and len(event_log) > 0:
             event_log.to_excel(writer, sheet_name="event log")
-        if rebalancing_weight is not None and len(rebalancing_weight) > 0:
-            rebalancing_weight.to_excel(writer, sheet_name="리밸런싱 비중")
         
         if order_weight is not None:
             order_weight.to_excel(writer, sheet_name="주문 비중")
@@ -36,7 +35,7 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
         if returns_until_next_rebal is not None:
             returns_until_next_rebal.to_excel(writer, sheet_name="리밸간 수익률")
 
-        if display_value_chart:
+        if insert_value_chart:
             sheet_name = 'portfolio log'
             worksheet = writer.sheets[sheet_name]
 
@@ -110,6 +109,14 @@ def save_simulation_result_to_excel_file(result: dict, path: str, display_value_
             chart.set_legend({'position': 'bottom'})
 
             worksheet.insert_chart(f'{xl_col_to_name(start_col + 5)}2', chart)
+
+        portfolio_log['port_value'].to_excel(writer, sheet_name="value_history")
+
+        if portfolio_weight_history_df is not None:
+            portfolio_weight_history_df.to_excel(writer, sheet_name="weight_history")
+
+        if rebalancing_weight is not None and len(rebalancing_weight) > 0:
+            rebalancing_weight.to_excel(writer, sheet_name="rebalancing_history")
 
 
 def calc_performance_from_value_history(daily_values: pd.Series) -> dict:

@@ -11,9 +11,10 @@ from .portfolio import Portfolio
 class BackTestBase(metaclass=ABCMeta):
     def __init__(self, **kwargs):
         self.name = kwargs.get("name")
-        self.name_for_result_column = kwargs.get('name_for_result_column', '전략')
+        self.name_for_result_column = kwargs.get('name_for_result_column', 'port_value')
         self.start_date = kwargs.get("start_date")
         self.end_date = kwargs.get("end_date")
+        self.date = self.start_date
         self.rebalancing_periodic = kwargs.get("rebalancing_periodic", 'monthly')
         self.rebalancing_moment = kwargs.get("rebalancing_moment", 'first')
         self.close_day_policy = kwargs.get("close_day_policy", "after")
@@ -23,7 +24,11 @@ class BackTestBase(metaclass=ABCMeta):
 
         self.portfolio = Portfolio()
         self.portfolio_log = pd.DataFrame(columns=['port_value', 'cash'])
+
+        self.rebalancing_mp_weight = pd.DataFrame()
         self.order_weight_df = pd.DataFrame()
+        self.port_weight_series_list = []
+        self.port_weight_df = None
         self.event_log = pd.DataFrame(columns=["datetime", "log"])
 
         # set trading days & rebalancing days
@@ -51,6 +56,18 @@ class BackTestBase(metaclass=ABCMeta):
         result = self.get_result_from_portfolio_log(portfolio_log)
         result['event_log'] = event_log
         return result
+
+    def log_port_weight(self):
+        port_weight_series = self.portfolio.get_allocations()
+        port_weight_row = port_weight_series.to_frame(self.date).T
+        self.port_weight_series_list.append(port_weight_row)
+
+    def is_trading_day(self):
+        today = self.date
+        if today in self.trading_days:
+            return True
+        else:
+            return False
 
     @abstractmethod
     def get_result_from_portfolio_log(self, portfolio_log) -> dict:

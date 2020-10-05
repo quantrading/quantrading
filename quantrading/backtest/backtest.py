@@ -1,13 +1,13 @@
 import pandas as pd
 from .simulation_result_utils import calc_performance_from_value_history
 from .backtest_base import BackTestBase
+from datetime import timedelta
 
 
 class Strategy(BackTestBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.date = self.start_date
         self.market_df_pct_change = self.market_close_df.pct_change()
 
         self.simulation_status = {}
@@ -26,15 +26,16 @@ class Strategy(BackTestBase):
 
     def run(self):
         self.initialize()
-
-        for date in self.trading_days:
-            self.date = date
-            self.on_start_of_day()
-            if self.exist_reservation_order:
-                self.execute_reservation_order()
-            if self.is_rebalancing_day():
-                self.on_data()
-            self.on_end_of_day()
+        end_date = self.end_date
+        while self.date <= end_date:
+            if self.is_trading_day():
+                self.on_start_of_day()
+                if self.exist_reservation_order:
+                    self.execute_reservation_order()
+                if self.is_rebalancing_day():
+                    self.on_data()
+                self.on_end_of_day()
+            self.date += timedelta(days=1)
         self.on_end_of_algorithm()
 
     def execute_reservation_order(self):
