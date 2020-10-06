@@ -19,6 +19,16 @@ class OpenCloseStrategy(BackTestBase):
         self.sell_delay = kwargs.get("sell_delay", 0)
         self.default_irregular_cool_time = kwargs.get("default_irregular_cool_time", 7)
 
+        self.custom_mp_option = kwargs.get("custom_mp_option", False)
+        if self.custom_mp_option:
+            self.custom_mp_start_date = kwargs.get("custom_mp_start_date")
+            self.custom_mp = kwargs.get("custom_mp")
+            self.custom_mp_sell_delay = kwargs.get("custom_mp_sell_delay", 0)
+            self.custom_mp_buy_delay = kwargs.get("custom_mp_buy_delay", 1)
+        else:
+            self.custom_mp_start_date = None
+            self.custom_mp = None
+
         # 당일 시가와 당일 종가 비교
         self.market_intraday_pct_change = self.market_close_df.divide(self.market_open_price_df) - 1
 
@@ -60,8 +70,11 @@ class OpenCloseStrategy(BackTestBase):
 
                 self.on_start_of_day()
 
-                if self.is_rebalancing_day():
-                    self.on_data()
+                if self.custom_mp_option and self.custom_mp_start_date <= self.date:
+                    self.custom_mp_rebalancing()
+                else:
+                    if self.is_rebalancing_day():
+                        self.on_data()
 
                 self.update_portfolio_value('open')
 
@@ -71,6 +84,26 @@ class OpenCloseStrategy(BackTestBase):
                 self.on_end_of_day()
             self.date += timedelta(days=1)
         self.on_end_of_algorithm()
+
+    def custom_mp_rebalancing(self):
+        """
+        custom_mp_rebalancing 시작시, 
+        sell delay, buy delay 수정
+        :return: 
+        """
+        self.sell_delay = self.custom_mp_sell_delay
+        self.buy_delay = self.custom_mp_buy_delay
+        
+        today_date = self.date
+
+        if today_date in self.custom_mp.index:
+            allocation = self.custom_mp.loc[today_date].to_dict()
+            print(today_date, allocation)
+        else:
+            return
+        allocation_series = pd.Series(allocation)
+        allocation_series.name = self.date
+        self.set_allocation(allocation_series)
 
     def set_allocation(self, allocation_series: pd.Series):
         self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T], axis=0)

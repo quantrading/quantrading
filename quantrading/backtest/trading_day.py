@@ -95,7 +95,10 @@ class TradingDay:
             num_of_days = calendar.monthrange(year, month)[1]
             date_list = pd.date_range(f'{year}-{month}-01', periods=num_of_days)
             n_th_date = date_list[n_th - 1]
-            n_th_date = self.magnet(n_th_date, self.close_day_policy)
+            try:
+                n_th_date = self.magnet(n_th_date, self.close_day_policy)
+            except IndexError:
+                continue
             days.append(n_th_date)
         return days
 
