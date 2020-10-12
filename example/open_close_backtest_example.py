@@ -8,7 +8,8 @@ class MyStrategy(qt.OpenCloseStrategy):
         super().__init__(**kwargs)
 
     def on_data(self):
-        today_date = self.date
+        data = self.get_available_data()
+        today_date = self.get_date()
 
         allocation = {
             'MSCI_WORLD_ACWI': 0.8,
@@ -17,19 +18,7 @@ class MyStrategy(qt.OpenCloseStrategy):
 
         print(today_date, allocation)
 
-        allocation_series = pd.Series(allocation)
-
-        allocation_series.name = self.date
-        self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T], axis=0)
-
-        amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
-
-        amount_delta_series.pop('cash')
-        sell_amount_series = amount_delta_series[amount_delta_series < 0]
-        buy_amount_series = amount_delta_series[amount_delta_series > 0]
-
-        self.reserve_order(sell_amount_series, "sell")
-        self.reserve_order(buy_amount_series, "buy")
+        self.set_allocation(allocation)
 
 
 if __name__ == "__main__":
@@ -60,6 +49,8 @@ if __name__ == "__main__":
         "custom_mp": custom_mp_df,
         "custom_mp_sell_delay": 0,
         "custom_mp_buy_delay": 1,
+
+        "portfolio_transaction_fee": 0.02
     }
 
     strategy = MyStrategy(**simulation_args)
