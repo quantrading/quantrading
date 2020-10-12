@@ -28,7 +28,7 @@ class Strategy(BackTestBase):
         self.initialize()
         end_date = self.end_date
         while self.date <= end_date:
-            if self.is_trading_day():
+            if self._is_trading_day():
                 self.on_start_of_day()
                 if self.exist_reservation_order:
                     self.execute_reservation_order()

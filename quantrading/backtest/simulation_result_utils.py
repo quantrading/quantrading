@@ -10,6 +10,7 @@ def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_c
     event_log = result.get('event_log', None)
     rebalancing_weight = result.get('rebalancing_weight', None)
     order_weight = result.get('order_weight', None)
+    turnover_weight = result.get('turnover_weight', None)
     portfolio_weight_history_df = result.get('portfolio_weight_history', None)
 
     portfolio_log = performance["portfolio_log"]
@@ -25,6 +26,9 @@ def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_c
         performance_summary.to_excel(writer, sheet_name="요약")
 
         workbook = writer.book
+        
+        if turnover_weight is not None:
+            turnover_weight.to_frame("회전율").to_excel(writer, sheet_name="회전율")
 
         if event_log is not None and len(event_log) > 0:
             event_log.to_excel(writer, sheet_name="event log")
@@ -79,6 +83,10 @@ def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_c
                                                                  'criteria': '>=',
                                                                  'value': -999,
                                                                  'format': float_format})
+        worksheet.conditional_format(f'B9:{columns_alphabet}9', {'type': 'cell',
+                                                                 'criteria': '>=',
+                                                                 'value': -999,
+                                                                 'format': percentge_format})
 
         if compare_with_bench:
             # 벤치마크가 첫 자산

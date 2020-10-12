@@ -2,10 +2,6 @@ import pandas as pd
 from datetime import datetime
 import numpy as np
 
-INITIAL_MONEY = "INITIAL_MONEY"
-SECURITY_HOLDING = "SECURITY_HOLDING"
-DEFAULT_SEED_MONEY = 100
-
 
 def convert_weight_delta(weight_delta_series: pd.Series) -> float:
     """
@@ -24,18 +20,21 @@ def convert_weight_delta(weight_delta_series: pd.Series) -> float:
 
 class Portfolio:
     def __init__(self, **kwargs):
-        self.cash = kwargs.get(INITIAL_MONEY, DEFAULT_SEED_MONEY)
-        self.security_holding = kwargs.get(SECURITY_HOLDING, {})
+        self.cash = kwargs.get("portfolio_seed_value", 100)
+        self.transaction_fee = kwargs.get("portfolio_transaction_fee", 0)   # 0%
+        self.security_holding = kwargs.get("SECURITY_HOLDING", {})
 
     def buy(self, ticker, amount):
-        new_amount = self.security_holding.get(ticker, 0) + amount
+        amount_after_fee = amount * (1 - self.transaction_fee)
+        new_amount = self.security_holding.get(ticker, 0) + amount_after_fee
         self.security_holding[ticker] = new_amount
         self.cash -= amount
 
     def sell(self, ticker, amount):
         prev_amount = self.security_holding.get(ticker, 0)
         self.security_holding[ticker] = prev_amount - amount
-        self.cash += amount
+        amount_after_fee = amount * (1 - self.transaction_fee)
+        self.cash += amount_after_fee
 
         if self.security_holding[ticker] == 0:
             del self.security_holding[ticker]

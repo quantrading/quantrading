@@ -22,11 +22,12 @@ class BackTestBase(metaclass=ABCMeta):
         self.market_close_df = kwargs.get("market_close_df")
         self.benchmark_ticker = kwargs.get("benchmark_ticker", None)
 
-        self.portfolio = Portfolio()
+        self.portfolio = Portfolio(**kwargs)
         self.portfolio_log = pd.DataFrame(columns=['port_value', 'cash'])
 
         self.rebalancing_mp_weight = pd.DataFrame()
-        self.order_weight_df = pd.DataFrame()
+        self._order_weight_df = pd.DataFrame()
+        self._turnover_weight_series = pd.Series()
         self.port_weight_series_list = []
         self.port_weight_df = None
         self.event_log = pd.DataFrame(columns=["datetime", "log"])
@@ -57,12 +58,12 @@ class BackTestBase(metaclass=ABCMeta):
         result['event_log'] = event_log
         return result
 
-    def log_port_weight(self):
+    def _log_port_weight(self):
         port_weight_series = self.portfolio.get_allocations()
         port_weight_row = port_weight_series.to_frame(self.date).T
         self.port_weight_series_list.append(port_weight_row)
 
-    def is_trading_day(self):
+    def _is_trading_day(self):
         today = self.date
         if today in self.trading_days:
             return True
