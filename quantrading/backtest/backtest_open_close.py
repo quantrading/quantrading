@@ -41,6 +41,7 @@ class OpenCloseStrategy(BackTestBase):
             self.__custom_mp = kwargs.get("custom_mp")
             self.__custom_mp_sell_delay = kwargs.get("custom_mp_sell_delay", 0)
             self.__custom_mp_buy_delay = kwargs.get("custom_mp_buy_delay", 1)
+            self.__custom_liquidate_date = kwargs.get("custom_liquidate_date")
         else:
             self.__custom_mp_start_date = None
             self.__custom_mp = None
@@ -81,6 +82,8 @@ class OpenCloseStrategy(BackTestBase):
                 self.__run_at_start_of_day()
                 if self.__is_custom_rebalancing_day():
                     self.__custom_mp_rebalancing()
+                elif self.__is_custom_liquidate_date():
+                    self.__run_at_custom_liquidate_date()
                 else:
                     if self.__is_rebalancing_day():
                         self.on_data()
@@ -173,6 +176,17 @@ class OpenCloseStrategy(BackTestBase):
 
     def __is_irregular_rebalancing_day(self) -> bool:
         return self.__irregular_rebalancing
+
+    def __is_custom_liquidate_date(self) -> bool:
+        return self.__custom_liquidate_date == self.date
+
+    def __run_at_custom_liquidate_date(self):
+        self.__sell_delay = 0
+        self.__buy_delay = 0
+        allocation = {
+            'cash': 1
+        }
+        self.set_allocation(allocation)
 
     def __is_custom_rebalancing_day(self) -> bool:
         return self.__custom_mp_option and self.__custom_mp_start_date <= self.date
@@ -318,7 +332,8 @@ class OpenCloseStrategy(BackTestBase):
         performance = calc_performance_from_value_history(portfolio_log[port_col_name])
         performance_summary = performance.get('performance_summary')
         performance_summary.name = port_col_name
-        performance_summary.loc["연회전율"] = (self._turnover_weight_series.sum() - 1) / self.__simulation_info['years_delta']
+        performance_summary.loc["연회전율"] = (self._turnover_weight_series.sum() - 1) / self.__simulation_info[
+            'years_delta']
 
         annual_summary = performance.get('annual_summary')
         multi_index = pd.MultiIndex.from_product([[port_col_name], annual_summary.columns])
