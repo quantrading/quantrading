@@ -81,9 +81,10 @@ class OpenCloseStrategy(BackTestBase):
             if self._is_trading_day():
                 self.__run_at_start_of_day()
                 if self.__is_custom_rebalancing_day():
-                    self.__custom_mp_rebalancing()
-                elif self.__is_custom_liquidate_date():
-                    self.__run_at_custom_liquidate_date()
+                    if self.__is_custom_liquidate_date():
+                        self.__run_at_custom_liquidate_date()
+                    else:
+                        self.__custom_mp_rebalancing()
                 else:
                     if self.__is_rebalancing_day():
                         self.on_data()
