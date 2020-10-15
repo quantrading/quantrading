@@ -20,6 +20,11 @@ class MyStrategy(qt.OpenCloseStrategy):
 
         self.set_allocation(allocation)
 
+    def on_end_of_algorithm(self):
+        data = self.get_available_data(exclude_today_data=False)
+        stock_price = data["market_close_df"]['MSCI_WORLD_ACWI']
+        self.add_to_rebalancing_factor_history(stock_price)
+
 
 if __name__ == "__main__":
     market_df = pd.read_csv("./stock_bond_data.csv", index_col=0, parse_dates=True)

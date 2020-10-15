@@ -12,6 +12,7 @@ def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_c
     order_weight = result.get('order_weight', None)
     turnover_weight = result.get('turnover_weight', None)
     portfolio_weight_history_df = result.get('portfolio_weight_history', None)
+    rebalancing_factor_history_df = result.get('rebalancing_factor_history', None)
 
     portfolio_log = performance["portfolio_log"]
     monthly_returns = performance["monthly_returns"]
@@ -125,6 +126,9 @@ def save_simulation_result_to_excel_file(result: dict, path: str, insert_value_c
 
         if rebalancing_weight is not None and len(rebalancing_weight) > 0:
             rebalancing_weight.to_excel(writer, sheet_name="rebalancing_history")
+
+        if rebalancing_factor_history_df is not None and len(rebalancing_factor_history_df) > 0:
+            rebalancing_factor_history_df.to_excel(writer, sheet_name="rebalancing_factor_history")
 
 
 def calc_performance_from_value_history(daily_values: pd.Series) -> dict:

@@ -30,7 +30,7 @@ class OpenCloseStrategy(BackTestBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.__market_open_price_df = kwargs.get("market_open_price_df")
-        self.__index_df = kwargs.get("index_df", pd.DataFrame())
+        self._index_df = kwargs.get("index_df", pd.DataFrame())
         self.__buy_delay = kwargs.get("buy_delay", 0)
         self.__sell_delay = kwargs.get("sell_delay", 0)
         self.__default_irregular_cool_time = kwargs.get("default_irregular_cool_time", 7)
@@ -141,12 +141,12 @@ class OpenCloseStrategy(BackTestBase):
             sliced_market_close_df = self.market_close_df.loc[self.market_close_df.index < today_date]
             sliced_market_open_price_df = self.__market_open_price_df.loc[
                 self.__market_open_price_df.index < today_date]
-            sliced_index_df = self.__index_df.loc[self.__index_df.index < today_date]
+            sliced_index_df = self._index_df.loc[self._index_df.index < today_date]
         else:
             sliced_market_close_df = self.market_close_df.loc[self.market_close_df.index <= today_date]
             sliced_market_open_price_df = self.__market_open_price_df.loc[
                 self.__market_open_price_df.index <= today_date]
-            sliced_index_df = self.__index_df.loc[self.__index_df.index <= today_date]
+            sliced_index_df = self._index_df.loc[self._index_df.index <= today_date]
 
         data_store = {
             "market_close_df": sliced_market_close_df,
@@ -162,6 +162,7 @@ class OpenCloseStrategy(BackTestBase):
         self._log_port_weight()
         self.__last_day_portfolio_value = self.portfolio.get_total_portfolio_value()
         self.on_end_of_day()
+        self.__irregular_cool_time -= 1
 
     def __run_at_end_of_algorithm(self):
         self.port_weight_df = pd.concat(self.port_weight_series_list, axis=0)
@@ -176,7 +177,12 @@ class OpenCloseStrategy(BackTestBase):
         self.on_start_of_day()
 
     def __is_irregular_rebalancing_day(self) -> bool:
-        return self.__irregular_rebalancing
+        if self.__irregular_rebalancing:
+            if self.__irregular_cool_time <= 0:
+                self.__irregular_cool_time = self.__default_irregular_cool_time
+                self.__irregular_rebalancing = False
+                return True
+        return False
 
     def __is_custom_liquidate_date(self) -> bool:
         return self.__custom_liquidate_date == self.date
@@ -288,15 +294,6 @@ class OpenCloseStrategy(BackTestBase):
 
     def __is_rebalancing_day(self):
         today = self.date
-
-        if self.__irregular_rebalancing:
-            self.__irregular_cool_time -= 1
-            if self.__irregular_cool_time <= 0:
-                self.__irregular_cool_time = self.__default_irregular_cool_time
-                self.__irregular_rebalancing = False
-                return True
-            else:
-                return False
 
         if today in self.rebalancing_days:
             return True

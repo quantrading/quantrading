@@ -43,6 +43,8 @@ class BackTestBase(metaclass=ABCMeta):
             self.rebalancing_moment
         )
 
+        self.portfolio_rebalancing_factor_history_list = []
+
         if self.benchmark_ticker is not None:
             masking = (self.market_close_df.index >= self.start_date) & (self.market_close_df.index <= self.end_date)
             self.benchmark_value_series = self.market_close_df.pct_change()[masking][self.benchmark_ticker].add(
@@ -55,6 +57,13 @@ class BackTestBase(metaclass=ABCMeta):
         portfolio_log = self.portfolio_log
         event_log = self.event_log
         result = self.get_result_from_portfolio_log(portfolio_log)
+
+        if len(self.portfolio_rebalancing_factor_history_list) > 0:
+            rebalancing_factor_history_df = pd.concat(self.portfolio_rebalancing_factor_history_list, axis=1)
+        else:
+            rebalancing_factor_history_df = pd.DataFrame()
+
+        result['rebalancing_factor_history'] = rebalancing_factor_history_df
         result['event_log'] = event_log
         return result
 
@@ -69,6 +78,9 @@ class BackTestBase(metaclass=ABCMeta):
             return True
         else:
             return False
+
+    def add_to_rebalancing_factor_history(self, data: pd.Series or pd.DataFrame):
+        self.portfolio_rebalancing_factor_history_list.append(data)
 
     @abstractmethod
     def get_result_from_portfolio_log(self, portfolio_log) -> dict:
