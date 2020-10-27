@@ -61,8 +61,12 @@ class OpenCloseStrategy(BackTestBase):
 
         self.__simulation_info = {}
         self.__last_day_portfolio_value = 100
+        self.__passed_first_trading_day = False
 
     def initialize(self):
+        """
+        백테스팅의 첫 거래일의 action
+        """
         pass
 
     def on_data(self):
@@ -74,11 +78,18 @@ class OpenCloseStrategy(BackTestBase):
     def irregular_rebalacning_trigger(self):
         self.__irregular_rebalancing = True
 
+    def is_first_trading_day(self) -> bool:
+        is_first_trading_day = not self.__passed_first_trading_day
+        self.__passed_first_trading_day = True
+        return is_first_trading_day
+
     def run(self):
-        self.initialize()
         end_date = self.end_date
         while self.date <= end_date:
             if self._is_trading_day():
+                if self.is_first_trading_day():
+                    self.initialize()
+
                 self.__run_at_start_of_day()
                 if self.__is_custom_rebalancing_day():
                     if self.__is_custom_liquidate_date():
@@ -120,7 +131,7 @@ class OpenCloseStrategy(BackTestBase):
         self.__temp_allocation_series = allocation_series
 
         if sum_should_one:
-            assert self.__temp_allocation_series.sum() == 1, "비중의 합이 1이 되어야 합니다. 비중이 남으면 'cash' 값 명시"
+            assert self.__temp_allocation_series.sum().round(4) == 1, "비중의 합이 1이 되어야 합니다. 비중이 남으면 'cash' 값 명시"
 
     def log_event(self, msg: str):
         self.event_log.loc[len(self.event_log)] = [self.date, msg]
@@ -204,8 +215,12 @@ class OpenCloseStrategy(BackTestBase):
         sell delay, buy delay 수정
         :return: 
         """
-        self.__sell_delay = self.__custom_mp_sell_delay
-        self.__buy_delay = self.__custom_mp_buy_delay
+        if len(self.get_base_weight()) == 0 or self.get_base_weight()['cash'] == 1:
+            self.__buy_delay = 0
+            self.__sell_delay = 0
+        else:
+            self.__buy_delay = self.__custom_mp_buy_delay
+            self.__sell_delay = self.__custom_mp_sell_delay
 
         today_date = self.date
 
@@ -264,7 +279,7 @@ class OpenCloseStrategy(BackTestBase):
         port_value = self.__last_day_portfolio_value
         reservation_order_series = today_reserved_order / port_value
         reservation_order_series.name = self.date
-        turnover_weight = reservation_order_series.abs().sum()
+        turnover_weight = reservation_order_series.abs().sum() / 2
         self._order_weight_df = pd.concat([self._order_weight_df, reservation_order_series.to_frame().T], axis=0)
         self._turnover_weight_series.loc[self.date] = turnover_weight
 
@@ -330,7 +345,7 @@ class OpenCloseStrategy(BackTestBase):
         performance = calc_performance_from_value_history(portfolio_log[port_col_name])
         performance_summary = performance.get('performance_summary')
         performance_summary.name = port_col_name
-        performance_summary.loc["연회전율"] = (self._turnover_weight_series.sum() - 1) / self.__simulation_info[
+        performance_summary.loc["연회전율"] = (self._turnover_weight_series.sum() - 0.5) / self.__simulation_info[
             'years_delta']
 
         annual_summary = performance.get('annual_summary')

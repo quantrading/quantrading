@@ -29,8 +29,11 @@ class TradingDay:
                              end_date: datetime,
                              rebalancing_periodic: str,
                              rebalancing_moment: str or int) -> list:
-        assert rebalancing_periodic in ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']
+        assert rebalancing_periodic in ['none', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly']
         assert rebalancing_moment in ['first', 'last', *[i + 1 for i in range(31)]]
+
+        if rebalancing_periodic == 'none':
+            return []
 
         if rebalancing_periodic == 'daily':
             rebalancing_days = self.get_trading_day_list(start_date, end_date).to_list()
