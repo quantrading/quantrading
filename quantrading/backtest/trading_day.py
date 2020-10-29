@@ -52,12 +52,12 @@ class TradingDay:
             else:
                 rebalancing_days = self.get_last_day_of_every_month(start_month, end_month)
         elif rebalancing_periodic == 'quarterly':
-            start_quarter = f"{start_date.year}-{(start_date.month - 1) // 3 + 1}"
-            end_quarter = f"{end_date.year}-{(end_date.month - 1) // 3 + 1}"
+            start_month = start_date.strftime("%Y-%m")
+            end_month = end_date.strftime("%Y-%m")
             if rebalancing_moment == "first":
-                rebalancing_days = self.get_first_day_of_report_month(start_quarter, end_quarter)
+                rebalancing_days = self.get_first_day_of_report_month(start_month, end_month)
             else:
-                rebalancing_days = self.get_last_day_of_report_month(start_quarter, end_quarter)
+                rebalancing_days = self.get_last_day_of_report_month(start_month, end_month)
         else:
             if rebalancing_moment == 'first':
                 rebalancing_days = self.get_first_day_of_every_year(start_date.year, end_date.year)
