@@ -63,6 +63,8 @@ class OpenCloseStrategy(BackTestBase):
         self.__last_day_portfolio_value = 100
         self.__passed_first_trading_day = False
 
+        self.__is_buy_day = False
+
     def initialize(self):
         """
         백테스팅의 첫 거래일의 action
@@ -91,7 +93,7 @@ class OpenCloseStrategy(BackTestBase):
                     self.initialize()
 
                 self.__run_at_start_of_day()
-                if self.__is_custom_rebalancing_day():
+                if self.__is_custom_rebalancing_period():
                     if self.__is_custom_liquidate_date():
                         self.__run_at_custom_liquidate_date()
                     else:
@@ -206,7 +208,7 @@ class OpenCloseStrategy(BackTestBase):
         }
         self.set_allocation(allocation)
 
-    def __is_custom_rebalancing_day(self) -> bool:
+    def __is_custom_rebalancing_period(self) -> bool:
         return self.__custom_mp_option and self.__custom_mp_start_date <= self.date
 
     def __custom_mp_rebalancing(self):
@@ -231,20 +233,40 @@ class OpenCloseStrategy(BackTestBase):
             return
         self.set_allocation(allocation)
 
+    def __is_exist_delay_between_buy_and_sell(self) -> bool:
+        return self.__buy_delay != self.__sell_delay
+
     def __reserve_allocation_order(self):
         if len(self.__temp_allocation_series) == 0:
             return
 
         allocation_series = self.__temp_allocation_series
-        self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T], axis=0)
-        amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
-        amount_delta_series.pop('cash')
-        sell_amount_series = amount_delta_series[amount_delta_series < 0]
-        buy_amount_series = amount_delta_series[amount_delta_series > 0]
-
-        self.__reserve_order(sell_amount_series, "sell")
-        self.__reserve_order(buy_amount_series, "buy")
-        self.__temp_allocation_series = pd.Series()
+        if self.__is_exist_delay_between_buy_and_sell():
+            amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
+            amount_delta_series.pop('cash')
+            sell_amount_series = amount_delta_series[amount_delta_series < 0]
+            buy_amount_series = amount_delta_series[amount_delta_series > 0]
+            if not self.__is_buy_day:
+                # 매도 주문 내는 날
+                self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T],
+                                                       axis=0)
+                self.__reserve_order(sell_amount_series, "sell")
+                self.__is_buy_day = True
+            else:
+                # 매수 주문 내는 날
+                self.__reserve_order(buy_amount_series, "buy")
+                self.__temp_allocation_series = pd.Series()
+                self.__is_buy_day = False
+        else:
+            amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
+            amount_delta_series.pop('cash')
+            sell_amount_series = amount_delta_series[amount_delta_series < 0]
+            buy_amount_series = amount_delta_series[amount_delta_series > 0]
+            self.rebalancing_mp_weight = pd.concat([self.rebalancing_mp_weight, allocation_series.to_frame().T], axis=0)
+            self.__reserve_order(sell_amount_series, "sell")
+            self.__reserve_order(buy_amount_series, "buy")
+            self.__temp_allocation_series = pd.Series()
+            self.__is_buy_day = False
 
     def __execute_reservation_order(self):
         today_reserved_order: pd.Series = self.__reservation_order.get(self.date)
@@ -287,7 +309,12 @@ class OpenCloseStrategy(BackTestBase):
         assert order_type in ["buy", "sell"]
 
         if order_type == "buy":
-            date = self.get_date(delta=self.__buy_delay)
+            buy_delay = self.__buy_delay
+            if self.__is_exist_delay_between_buy_and_sell():
+                buy_delay -= 1
+            if self.__is_custom_rebalancing_period():
+                buy_delay = 0
+            date = self.get_date(delta=buy_delay)
         else:
             date = self.get_date(delta=self.__sell_delay)
 
