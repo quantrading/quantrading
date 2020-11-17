@@ -103,8 +103,8 @@ class OpenCloseStrategy(BackTestBase):
                         self.on_data()
                     if self.__is_irregular_rebalancing_day():
                         self.on_irregular_rebalacning()
-                self.__reserve_allocation_order()
                 self.__update_portfolio_value('open')
+                self.__reserve_allocation_order()
                 if self.date in self.__reservation_order.keys():
                     self.__execute_reservation_order()
 
@@ -241,9 +241,9 @@ class OpenCloseStrategy(BackTestBase):
             return
 
         allocation_series = self.__temp_allocation_series
-        if self.__is_exist_delay_between_buy_and_sell():
+        if self.__is_exist_delay_between_buy_and_sell() :
             amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
-            amount_delta_series.pop('cash')
+            cash_weight = amount_delta_series.pop('cash')
             sell_amount_series = amount_delta_series[amount_delta_series < 0]
             buy_amount_series = amount_delta_series[amount_delta_series > 0]
             if not self.__is_buy_day:
@@ -313,7 +313,7 @@ class OpenCloseStrategy(BackTestBase):
             if self.__is_exist_delay_between_buy_and_sell():
                 buy_delay -= 1
             if self.__is_custom_rebalancing_period():
-                buy_delay = 0
+                buy_delay = 1
             date = self.get_date(delta=buy_delay)
         else:
             date = self.get_date(delta=self.__sell_delay)
