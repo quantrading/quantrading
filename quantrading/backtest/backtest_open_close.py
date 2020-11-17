@@ -217,7 +217,7 @@ class OpenCloseStrategy(BackTestBase):
         sell delay, buy delay 수정
         :return: 
         """
-        if len(self.get_base_weight()) == 0 or self.get_base_weight()['cash'] == 1:
+        if self.get_base_weight()['cash'] == 1:
             self.__buy_delay = 0
             self.__sell_delay = 0
         else:
@@ -241,7 +241,7 @@ class OpenCloseStrategy(BackTestBase):
             return
 
         allocation_series = self.__temp_allocation_series
-        if self.__is_exist_delay_between_buy_and_sell() :
+        if self.__is_exist_delay_between_buy_and_sell():
             amount_delta_series = self.portfolio.get_amount_delta(allocation_series)
             cash_weight = amount_delta_series.pop('cash')
             sell_amount_series = amount_delta_series[amount_delta_series < 0]
@@ -313,7 +313,7 @@ class OpenCloseStrategy(BackTestBase):
             if self.__is_exist_delay_between_buy_and_sell():
                 buy_delay -= 1
             if self.__is_custom_rebalancing_period():
-                buy_delay = 1
+                buy_delay = 0
             date = self.get_date(delta=buy_delay)
         else:
             date = self.get_date(delta=self.__sell_delay)
