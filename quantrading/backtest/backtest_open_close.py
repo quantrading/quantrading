@@ -217,7 +217,7 @@ class OpenCloseStrategy(BackTestBase):
         sell delay, buy delay 수정
         :return: 
         """
-        if self.get_base_weight()['cash'] == 1:
+        if self.get_base_weight().get('cash', 0) == 1:
             self.__buy_delay = 0
             self.__sell_delay = 0
         else:
